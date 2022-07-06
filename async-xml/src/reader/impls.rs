@@ -121,12 +121,7 @@ where
         }
         match T::from_str(text) {
             Ok(t) => self.data = Some(t),
-            Err(e) => {
-                return Err(Error::Deserialization(format!(
-                    "deserialization error: {}",
-                    e
-                )))
-            }
+            Err(e) => return Err(Error::Deserialization(e.to_string())),
         }
         Ok(())
     }
