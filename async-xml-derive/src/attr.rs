@@ -8,12 +8,18 @@ use syn::{Attribute, Meta, NestedMeta};
 pub struct Container {
     pub tag_name: Option<String>,
     pub use_from_str: bool,
+    pub allow_unknown_children: bool,
+    pub allow_unknown_attributes: bool,
+    pub allow_unknown_text: bool,
 }
 
 impl Container {
     pub fn from_attrs(ctx: &Ctx, attrs: &Vec<Attribute>) -> Self {
         let mut tag_name = None;
         let mut use_from_str = false;
+        let mut allow_unknown_children = false;
+        let mut allow_unknown_attributes = false;
+        let mut allow_unknown_text = false;
 
         for attr in attrs {
             if attr.path != FROM_XML {
@@ -33,6 +39,20 @@ impl Container {
                             }
                             NestedMeta::Meta(Meta::Path(m)) if m == USE_FROM_STR => {
                                 use_from_str = true;
+                            }
+                            NestedMeta::Meta(Meta::Path(m)) if m == ALLOW_UNKNOWN_CHILDREN => {
+                                allow_unknown_children = true;
+                            }
+                            NestedMeta::Meta(Meta::Path(m)) if m == ALLOW_UNKNOWN_ATTRIBUTES => {
+                                allow_unknown_attributes = true;
+                            }
+                            NestedMeta::Meta(Meta::Path(m)) if m == ALLOW_UNKNOWN_TEXT => {
+                                allow_unknown_text = true;
+                            }
+                            NestedMeta::Meta(Meta::Path(m)) if m == ALLOW_UNKNOWN => {
+                                allow_unknown_children = true;
+                                allow_unknown_attributes = true;
+                                allow_unknown_text = true;
                             }
                             NestedMeta::Meta(meta) => {
                                 ctx.error_spanned_by(meta, "unexpected meta");
@@ -55,6 +75,9 @@ impl Container {
         Self {
             tag_name,
             use_from_str,
+            allow_unknown_children,
+            allow_unknown_attributes,
+            allow_unknown_text,
         }
     }
 }

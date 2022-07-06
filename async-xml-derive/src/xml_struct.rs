@@ -17,7 +17,6 @@ pub enum StructType {
 }
 
 pub struct StructContainer<'a> {
-    #[allow(dead_code)]
     attr: crate::attr::Container,
     /// Name of the input struct
     name: Ident,
@@ -134,7 +133,7 @@ pub fn expand_struct(
             &mut visitor_visit_value,
         );
     }
-    if visitor_visit_value.is_empty() {
+    if visitor_visit_value.is_empty() && !container.attr.allow_unknown_text {
         visitor_visit_value = quote! { Err(async_xml::Error::UnexpectedText) };
     }
 
@@ -194,14 +193,17 @@ pub fn expand_struct(
         })
         .unwrap(),
     );
+    let unknown_attr = if container.attr.allow_unknown_attributes {
+        TokenStream::new()
+    } else {
+        quote! { return Err(async_xml::Error::UnexpectedAttribute(name.into())); }
+    };
     visitor_impl.items.push(
         syn::parse2(quote! {
             fn visit_attribute(&mut self, name: &str, value: &str) -> Result<(), async_xml::Error> {
                 match name {
                     #visitor_visit_attr_match
-                    _ => {
-                        return Err(async_xml::Error::UnexpectedAttribute(name.into()));
-                    }
+                    _ => { #unknown_attr }
                 }
                 #[allow(unreachable_code)]
                 Ok(())
@@ -217,6 +219,11 @@ pub fn expand_struct(
         })
         .unwrap(),
     );
+    let unknown_child = if container.attr.allow_unknown_children {
+        quote! { reader.skip_element().await?; }
+    } else {
+        quote! { return Err(async_xml::Error::UnexpectedChild(name.into())); }
+    };
     visitor_impl.items.push(
         syn::parse2(quote! {
             async fn visit_child(
@@ -226,9 +233,7 @@ pub fn expand_struct(
             ) -> Result<(), async_xml::Error> {
                 match name {
                     #visitor_visit_child_match
-                    _ => {
-                        return Err(async_xml::Error::UnexpectedChild(name.into()));
-                    }
+                    _ => { #unknown_child }
                 }
                 #[allow(unreachable_code)]
                 Ok(())

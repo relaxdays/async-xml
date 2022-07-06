@@ -27,7 +27,7 @@ impl<'a> FieldData<'a> {
     pub fn from_field(ctx: &Ctx, field: &'a syn::Field, index: usize) -> Result<Self, ()> {
         let attrs = Field::from_attrs(ctx, &field.attrs);
         let inner_de_type = if let Some(ty) = attrs.from.as_ref() {
-            &ty
+            ty
         } else {
             &field.ty
         };

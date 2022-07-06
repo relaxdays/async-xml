@@ -15,6 +15,10 @@ pub const VEC: Symbol = Symbol("Vec");
 pub const OPTION: Symbol = Symbol("Option");
 pub const USE_FROM_STR: Symbol = Symbol("use_from_str");
 pub const FROM: Symbol = Symbol("from");
+pub const ALLOW_UNKNOWN_CHILDREN: Symbol = Symbol("allow_unknown_children");
+pub const ALLOW_UNKNOWN_ATTRIBUTES: Symbol = Symbol("allow_unknown_attributes");
+pub const ALLOW_UNKNOWN_TEXT: Symbol = Symbol("allow_unknown_text");
+pub const ALLOW_UNKNOWN: Symbol = Symbol("allow_unknown");
 
 impl PartialEq<Symbol> for Path {
     fn eq(&self, other: &Symbol) -> bool {
