@@ -63,6 +63,7 @@ pub struct Field {
     pub source: FieldSource,
     pub default: Default,
     pub rename: Option<String>,
+    pub from: Option<syn::Type>,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -92,6 +93,7 @@ impl Field {
         let mut source = None;
         let mut default = None;
         let mut rename = None;
+        let mut from = None;
 
         for attr in attrs {
             if attr.path != FROM_XML {
@@ -137,6 +139,14 @@ impl Field {
                                     }
                                 }
                             }
+                            NestedMeta::Meta(Meta::NameValue(m)) if m.path == FROM => {
+                                let _type = get_lit_str_as_type(ctx, &m.lit);
+                                if let Ok(_type) = _type {
+                                    if from.replace(_type).is_some() {
+                                        ctx.error_spanned_by(m, "from already specified");
+                                    }
+                                }
+                            }
                             NestedMeta::Meta(meta) => {
                                 ctx.error_spanned_by(meta, "unexpected meta");
                             }
@@ -159,6 +169,7 @@ impl Field {
             source: source.unwrap_or(FieldSource::Value),
             default: default.unwrap_or(Default::None),
             rename,
+            from,
         }
     }
 }
@@ -173,6 +184,13 @@ fn get_lit_str<'a>(ctx: &Ctx, lit: &'a syn::Lit) -> Result<&'a syn::LitStr, ()> 
 }
 
 fn get_lit_str_as_expr_path(ctx: &Ctx, lit: &syn::Lit) -> Result<syn::ExprPath, ()> {
+    let str = get_lit_str(ctx, lit)?;
+    parse_lit_str(str).map_err(|_| {
+        ctx.error_spanned_by(lit, "failed to parse path");
+    })
+}
+
+fn get_lit_str_as_type(ctx: &Ctx, lit: &syn::Lit) -> Result<syn::Type, ()> {
     let str = get_lit_str(ctx, lit)?;
     parse_lit_str(str).map_err(|_| {
         ctx.error_spanned_by(lit, "failed to parse path");

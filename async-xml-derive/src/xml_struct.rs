@@ -117,7 +117,12 @@ pub fn expand_struct(
             .map(|f| f.visitor_struct_default_field()),
     );
     let mut visitor_build_fields = TokenStream::new();
-    visitor_build_fields.append_all(container.fields.iter().map(|f| f.visitor_build_field()));
+    visitor_build_fields.append_all(
+        container
+            .fields
+            .iter()
+            .map(|f| f.visitor_build_field(&container.struct_type)),
+    );
 
     let mut visitor_visit_attr_match = TokenStream::new();
     let mut visitor_visit_child_match = TokenStream::new();

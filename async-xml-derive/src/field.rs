@@ -1,6 +1,7 @@
 use crate::attr::{Field, FieldSource};
 use crate::ctx::Ctx;
-use crate::path::{get_type_path_type, TypePathType};
+use crate::path::{get_generic_arg, get_type_path_type, TypePathType};
+use crate::xml_struct::StructType;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, TokenStreamExt};
 use syn::{Lit, Type};
@@ -14,6 +15,7 @@ pub enum FieldType {
 pub struct FieldData<'a> {
     pub inner: &'a syn::Field,
     pub attrs: Field,
+    pub deserialization_type: Type,
     pub field_type: FieldType,
     pub type_type: TypePathType,
     pub visitor_field_name: Ident,
@@ -24,7 +26,20 @@ pub struct FieldData<'a> {
 impl<'a> FieldData<'a> {
     pub fn from_field(ctx: &Ctx, field: &'a syn::Field, index: usize) -> Result<Self, ()> {
         let attrs = Field::from_attrs(ctx, &field.attrs);
-        let type_type = get_type_path_type(&field.ty);
+        let inner_de_type = if let Some(ty) = attrs.from.as_ref() {
+            &ty
+        } else {
+            &field.ty
+        };
+        let type_type = get_type_path_type(inner_de_type);
+        let visitor_field_type = match type_type {
+            TypePathType::Any => syn::parse2(quote! { Option<#inner_de_type> }).unwrap(),
+            TypePathType::Vec | TypePathType::Option => inner_de_type.to_owned(),
+        };
+        let deserialization_type = match type_type {
+            TypePathType::Any | TypePathType::Option => inner_de_type.clone(),
+            TypePathType::Vec => get_generic_arg(inner_de_type),
+        };
 
         match (type_type, attrs.source) {
             // allow child elements to be read into a vec
@@ -47,11 +62,6 @@ impl<'a> FieldData<'a> {
                 FieldType::Unnamed,
             )
         };
-        let ty = &field.ty;
-        let visitor_field_type = match type_type {
-            TypePathType::Any => syn::parse2(quote! { Option<#ty> }).unwrap(),
-            TypePathType::Vec | TypePathType::Option => ty.to_owned(),
-        };
         let tag_name = if let Some(rename) = &attrs.rename {
             syn::LitStr::new(rename, Span::call_site())
         } else {
@@ -62,6 +72,7 @@ impl<'a> FieldData<'a> {
         Ok(Self {
             inner: field,
             attrs,
+            deserialization_type,
             field_type,
             type_type,
             visitor_field_name,
@@ -96,7 +107,7 @@ impl<'a> FieldData<'a> {
     ) {
         let tag = &self.tag_name;
         let ident = &self.visitor_field_name;
-        let ty = &self.inner.ty;
+        let ty = &self.deserialization_type;
         match self.attrs.source {
             FieldSource::Attribute => {
                 visit_attr.append_all(quote! {
@@ -124,7 +135,7 @@ impl<'a> FieldData<'a> {
                 TypePathType::Vec => {
                     visit_child.append_all(quote! {
                         #tag => {
-                            self.#ident.push(reader.deserialize().await?);
+                            self.#ident.push(reader.deserialize::<#ty>().await?);
                         }
                     });
                 }
@@ -134,7 +145,7 @@ impl<'a> FieldData<'a> {
                             if self.#ident.is_some() {
                                 return Err(async_xml::Error::DoubleChild(name.into()));
                             }
-                            self.#ident = Some(reader.deserialize().await?);
+                            self.#ident = Some(reader.deserialize::<#ty>().await?);
                         }
                     });
                 }
@@ -144,7 +155,7 @@ impl<'a> FieldData<'a> {
                             if self.#ident.is_some() {
                                 return Err(async_xml::Error::DoubleChild(name.into()));
                             }
-                            self.#ident = reader.deserialize().await?;
+                            self.#ident = reader.deserialize::<#ty>().await?;
                         }
                     });
                 }
@@ -159,15 +170,19 @@ impl<'a> FieldData<'a> {
         }
     }
 
-    pub fn visitor_build_field(&self) -> TokenStream {
+    pub fn visitor_build_field(&self, struct_type: &StructType) -> TokenStream {
         let name = &self.visitor_field_name;
-        match self.type_type {
+        let val = match self.type_type {
             TypePathType::Any => {
-                quote! { #name, }
+                quote! { #name.into() }
             }
             TypePathType::Vec | TypePathType::Option => {
-                quote! { #name: self.#name, }
+                quote! { self.#name.into() }
             }
+        };
+        match struct_type {
+            StructType::Normal => quote! { #name: #val, },
+            StructType::Newtype | StructType::Tuple => quote! { #val, },
         }
     }
 

@@ -14,6 +14,7 @@ pub const RENAME: Symbol = Symbol("rename");
 pub const VEC: Symbol = Symbol("Vec");
 pub const OPTION: Symbol = Symbol("Option");
 pub const USE_FROM_STR: Symbol = Symbol("use_from_str");
+pub const FROM: Symbol = Symbol("from");
 
 impl PartialEq<Symbol> for Path {
     fn eq(&self, other: &Symbol) -> bool {
