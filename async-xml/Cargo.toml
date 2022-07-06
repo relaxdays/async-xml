@@ -1,0 +1,27 @@
+[package]
+name = "async-xml"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sophie Tauchert <sophie@999eagle.moe>"]
+license = "MIT OR Apache-2.0"
+description = "A crate for deserializing XML data asynchronously."
+homepage = "https://github.com/relaxdays/async-xml"
+repository = "https://github.com/relaxdays/async-xml"
+keywords = ["async", "deserialization"]
+categories = ["asynchronous", "encoding"]
+
+[features]
+default = []
+derive = ["async-xml-derive"]
+
+[dependencies]
+# this is waiting for https://github.com/tafia/quick-xml/pull/314
+quick-xml = { git = "https://github.com/itsgreggreg/quick-xml", branch = "async", features = ["asynchronous", "encoding"] }
+tokio = { version = "1.19", features = ["io-std"] }
+async-trait = "0.1.56"
+thiserror = "1.0.31"
+async-xml-derive = { version = "0.1.0", path = "../async-xml-derive", optional = true }
+
+[dev-dependencies]
+async-xml-derive = { path = "../async-xml-derive" }
+tokio = { version = "1.19", features = ["io-std", "macros", "rt-multi-thread"] }

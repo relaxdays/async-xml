@@ -1,0 +1,19 @@
+[package]
+name = "async-xml-derive"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sophie Tauchert <sophie@999eagle.moe>"]
+license = "MIT OR Apache-2.0"
+description = "Derive macros for async-xml"
+homepage = "https://github.com/relaxdays/async-xml"
+repository = "https://github.com/relaxdays/async-xml"
+keywords = ["async", "deserialization"]
+categories = ["asynchronous", "encoding"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+syn = "1.0"
+quote = "1.0"
