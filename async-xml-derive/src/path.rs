@@ -5,6 +5,7 @@ pub enum TypePathType {
     Any,
     Vec,
     Option,
+    XmlNode,
 }
 
 pub fn get_type_path_type(ty: &syn::Type) -> TypePathType {
@@ -15,6 +16,9 @@ pub fn get_type_path_type(ty: &syn::Type) -> TypePathType {
                 return TypePathType::Vec;
             } else if segment.ident == OPTION {
                 return TypePathType::Option;
+            } else if segment.ident == XML_NODE {
+                // TODO: make this more stable for paths like async_xml::util::XmlNode
+                return TypePathType::XmlNode;
             }
         }
     }

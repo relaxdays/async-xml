@@ -115,6 +115,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                         return Err(Error::WrongStart(expected_name.into(), name.into()));
                     }
                 }
+                visitor.visit_tag(&name)?;
                 // store name to match expected end element
                 start_tag = name.to_string();
                 // read attributes
@@ -184,6 +185,11 @@ pub trait Visitor<B: AsyncBufRead + Send + Unpin> {
 
     fn start_name() -> Option<&'static str> {
         None
+    }
+
+    #[allow(unused_variables)]
+    fn visit_tag(&mut self, name: &str) -> Result<(), Error> {
+        Ok(())
     }
 
     #[allow(unused_variables)]

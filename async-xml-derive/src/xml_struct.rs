@@ -45,7 +45,7 @@ impl<'a> StructContainer<'a> {
         };
 
         let ctx = Ctx::new();
-        let fields = data
+        let mut fields = data
             .fields
             .iter()
             .enumerate()
@@ -68,6 +68,22 @@ impl<'a> StructContainer<'a> {
             }
             ctx.syn_error(err);
         }
+        let remain_count = fields
+            .iter()
+            .filter(|f| f.attrs.source == FieldSource::Remains)
+            .count();
+        if remain_count > 1 {
+            let mut errs = fields
+                .iter()
+                .filter(|f| f.attrs.source == FieldSource::Remains)
+                .map(|f| syn::Error::new_spanned(&f.inner, "multiple fields sourcing from remains"))
+                .collect::<Vec<_>>();
+            let mut err = errs.remove(0);
+            for e in errs {
+                err.combine(e);
+            }
+            ctx.syn_error(err);
+        }
         ctx.check()?;
         let struct_type = if fields.iter().all(|f| f.field_type == FieldType::Unnamed) {
             if fields.len() == 1 {
@@ -78,6 +94,17 @@ impl<'a> StructContainer<'a> {
         } else {
             StructType::Normal
         };
+        // make sure the remains field is last
+        if remain_count == 1 {
+            let idx = fields
+                .iter()
+                .enumerate()
+                .find(|(_, f)| f.attrs.source == FieldSource::Remains)
+                .unwrap()
+                .0;
+            let remains_field = fields.remove(idx);
+            fields.push(remains_field);
+        }
 
         Ok(Self {
             attr: container,
@@ -126,11 +153,13 @@ pub fn expand_struct(
     let mut visitor_visit_attr_match = TokenStream::new();
     let mut visitor_visit_child_match = TokenStream::new();
     let mut visitor_visit_value = TokenStream::new();
+    let mut visitor_visit_tag = TokenStream::new();
     for field in &container.fields {
         field.visitor_visit(
             &mut visitor_visit_attr_match,
             &mut visitor_visit_child_match,
             &mut visitor_visit_value,
+            &mut visitor_visit_tag,
         );
     }
     if visitor_visit_value.is_empty() && !container.attr.allow_unknown_text {
@@ -189,6 +218,15 @@ pub fn expand_struct(
         syn::parse2(quote! {
             fn start_name() -> Option<&'static str> {
                 #tag_name
+            }
+        })
+        .unwrap(),
+    );
+    visitor_impl.items.push(
+        syn::parse2(quote! {
+            fn visit_tag(&mut self, name: &str) -> Result<(), async_xml::Error> {
+                #visitor_visit_tag
+                Ok(())
             }
         })
         .unwrap(),

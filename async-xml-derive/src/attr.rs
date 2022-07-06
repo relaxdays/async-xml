@@ -94,6 +94,7 @@ pub enum FieldSource {
     Attribute,
     Child,
     Value,
+    Remains,
 }
 
 pub enum Default {
@@ -138,6 +139,11 @@ impl Field {
                             }
                             NestedMeta::Meta(Meta::Path(m)) if m == CHILD => {
                                 if source.replace(FieldSource::Child).is_some() {
+                                    ctx.error_spanned_by(m, "source already specified");
+                                }
+                            }
+                            NestedMeta::Meta(Meta::Path(m)) if m == REMAINS => {
+                                if source.replace(FieldSource::Remains).is_some() {
                                     ctx.error_spanned_by(m, "source already specified");
                                 }
                             }
