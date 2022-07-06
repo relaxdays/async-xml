@@ -9,11 +9,12 @@ mod from_xml;
 mod path;
 mod respan;
 mod symbol;
+mod xml_struct;
 
 #[proc_macro_derive(FromXml, attributes(from_xml))]
 pub fn derive_from_xml(input: TokenStream) -> TokenStream {
-    let mut input = parse_macro_input!(input as DeriveInput);
-    from_xml::expand_from_xml(&mut input)
+    let input = parse_macro_input!(input as DeriveInput);
+    from_xml::expand_from_xml(&input)
         .unwrap_or_else(to_compile_errors)
         .into()
 }

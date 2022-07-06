@@ -28,6 +28,8 @@ pub enum Error {
     UnexpectedChild(String),
     #[error("Found unexpected text")]
     UnexpectedText,
+    #[error("Deserialization error: {0}")]
+    Deserialization(String),
 }
 
 impl From<quick_xml::Error> for Error {

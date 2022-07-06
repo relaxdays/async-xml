@@ -1,21 +1,28 @@
 use crate::attr::{Field, FieldSource};
 use crate::ctx::Ctx;
 use crate::path::{get_type_path_type, TypePathType};
-use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens, TokenStreamExt};
-use syn::Lit;
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{quote, TokenStreamExt};
+use syn::{Lit, Type};
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum FieldType {
+    Named,
+    Unnamed,
+}
 
 pub struct FieldData<'a> {
     pub inner: &'a syn::Field,
     pub attrs: Field,
+    pub field_type: FieldType,
     pub type_type: TypePathType,
-    pub visitor_field_name: TokenStream,
-    pub visitor_field_type: TokenStream,
+    pub visitor_field_name: Ident,
+    pub visitor_field_type: Type,
     pub tag_name: Lit,
 }
 
 impl<'a> FieldData<'a> {
-    pub fn from_field(ctx: &Ctx, field: &'a syn::Field) -> Result<Self, ()> {
+    pub fn from_field(ctx: &Ctx, field: &'a syn::Field, index: usize) -> Result<Self, ()> {
         let attrs = Field::from_attrs(ctx, &field.attrs);
         let type_type = get_type_path_type(&field.ty);
 
@@ -32,29 +39,30 @@ impl<'a> FieldData<'a> {
             }
         }
 
-        let visitor_field_name = field.ident.as_ref().unwrap().to_token_stream();
+        let (visitor_field_name, field_type) = if let Some(ident) = field.ident.as_ref() {
+            (ident.to_owned(), FieldType::Named)
+        } else {
+            (
+                Ident::new(&format!("__{}", index), Span::call_site()),
+                FieldType::Unnamed,
+            )
+        };
         let ty = &field.ty;
         let visitor_field_type = match type_type {
-            TypePathType::Any => {
-                quote! { Option<#ty> }
-            }
-            TypePathType::Vec | TypePathType::Option => {
-                quote! { #ty }
-            }
+            TypePathType::Any => syn::parse2(quote! { Option<#ty> }).unwrap(),
+            TypePathType::Vec | TypePathType::Option => ty.to_owned(),
         };
         let tag_name = if let Some(rename) = &attrs.rename {
             syn::LitStr::new(rename, Span::call_site())
         } else {
-            syn::LitStr::new(
-                &field.ident.as_ref().unwrap().to_string(),
-                Span::call_site(),
-            )
+            syn::LitStr::new(&visitor_field_name.to_string(), Span::call_site())
         };
         let tag_name = syn::Lit::Str(tag_name);
 
         Ok(Self {
             inner: field,
             attrs,
+            field_type,
             type_type,
             visitor_field_name,
             visitor_field_type,
@@ -88,15 +96,24 @@ impl<'a> FieldData<'a> {
     ) {
         let tag = &self.tag_name;
         let ident = &self.visitor_field_name;
+        let ty = &self.inner.ty;
         match self.attrs.source {
             FieldSource::Attribute => {
                 visit_attr.append_all(quote! {
-                   #tag => { self.#ident.replace(value.into()); }
+                   #tag => {
+                        let mut visitor = <#ty as async_xml::reader::FromXml<B>>::Visitor::default();
+                        <<#ty as async_xml::reader::FromXml<B>>::Visitor as async_xml::reader::Visitor<B>>::visit_text(&mut visitor, value)?;
+                        let val = <<#ty as async_xml::reader::FromXml<B>>::Visitor as async_xml::reader::Visitor<B>>::build(visitor)?;
+                        self.#ident.replace(val);
+                    }
                 });
             }
             FieldSource::Value => {
                 *visit_text = quote! {
-                    if self.#ident.replace(text.into()).is_some() {
+                    let mut visitor = <#ty as async_xml::reader::FromXml<B>>::Visitor::default();
+                    <<#ty as async_xml::reader::FromXml<B>>::Visitor as async_xml::reader::Visitor<B>>::visit_text(&mut visitor, text)?;
+                    let val = <<#ty as async_xml::reader::FromXml<B>>::Visitor as async_xml::reader::Visitor<B>>::build(visitor)?;
+                    if self.#ident.replace(val).is_some() {
                         Err(async_xml::Error::DoubleText)
                     } else {
                         Ok(())

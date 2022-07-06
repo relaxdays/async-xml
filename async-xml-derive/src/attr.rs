@@ -7,11 +7,13 @@ use syn::{Attribute, Meta, NestedMeta};
 /// container attributes
 pub struct Container {
     pub tag_name: Option<String>,
+    pub use_from_str: bool,
 }
 
 impl Container {
     pub fn from_attrs(ctx: &Ctx, attrs: &Vec<Attribute>) -> Self {
         let mut tag_name = None;
+        let mut use_from_str = false;
 
         for attr in attrs {
             if attr.path != FROM_XML {
@@ -28,6 +30,9 @@ impl Container {
                                         ctx.error_spanned_by(m, "tag name given multiple times");
                                     }
                                 }
+                            }
+                            NestedMeta::Meta(Meta::Path(m)) if m == USE_FROM_STR => {
+                                use_from_str = true;
                             }
                             NestedMeta::Meta(meta) => {
                                 ctx.error_spanned_by(meta, "unexpected meta");
@@ -47,7 +52,10 @@ impl Container {
             }
         }
 
-        Self { tag_name }
+        Self {
+            tag_name,
+            use_from_str,
+        }
     }
 }
 
@@ -148,7 +156,7 @@ impl Field {
         }
 
         Self {
-            source: source.unwrap_or(FieldSource::Child),
+            source: source.unwrap_or(FieldSource::Value),
             default: default.unwrap_or(Default::None),
             rename,
         }

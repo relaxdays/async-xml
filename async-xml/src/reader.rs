@@ -4,6 +4,10 @@ use quick_xml::reader::Decoder;
 use quick_xml::AsyncReader;
 use tokio::io::AsyncBufRead;
 
+mod impls;
+
+pub use impls::XmlFromStr;
+
 pub struct PeekingReader<B: AsyncBufRead> {
     reader: AsyncReader<B>,
     peeked_event: Option<Event<'static>>,
@@ -121,6 +125,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
 }
 
 impl<'r> PeekingReader<&'r [u8]> {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(str: &'r str) -> Self {
         Self::from_buf(str.as_bytes())
     }
@@ -158,74 +163,4 @@ pub trait Visitor<B: AsyncBufRead + Send + Unpin> {
     }
 
     fn build(self) -> Result<Self::Output, Error>;
-}
-
-impl<B, T> FromXml<B> for Option<T>
-where
-    B: AsyncBufRead + Send + Unpin,
-    T: FromXml<B>,
-{
-    type Visitor = OptionalVisitor<T, B>;
-}
-
-pub struct OptionalVisitor<T, B>
-where
-    B: AsyncBufRead + Send + Unpin,
-    T: FromXml<B>,
-{
-    empty: bool,
-    inner_visitor: T::Visitor,
-}
-
-impl<T, B> Default for OptionalVisitor<T, B>
-where
-    B: AsyncBufRead + Send + Unpin,
-    T: FromXml<B>,
-{
-    fn default() -> Self {
-        Self {
-            empty: true,
-            inner_visitor: T::Visitor::default(),
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl<B, T> Visitor<B> for OptionalVisitor<T, B>
-where
-    B: AsyncBufRead + Send + Unpin,
-    T: FromXml<B>,
-{
-    type Output = Option<T>;
-
-    fn start_name() -> Option<&'static str> {
-        T::Visitor::start_name()
-    }
-
-    fn visit_attribute(&mut self, name: &str, value: &str) -> Result<(), Error> {
-        self.empty = false;
-        self.inner_visitor.visit_attribute(name, value)
-    }
-
-    async fn visit_child(
-        &mut self,
-        name: &str,
-        reader: &mut PeekingReader<B>,
-    ) -> Result<(), Error> {
-        self.empty = false;
-        self.inner_visitor.visit_child(name, reader).await
-    }
-
-    fn visit_text(&mut self, text: &str) -> Result<(), Error> {
-        self.empty = false;
-        self.inner_visitor.visit_text(text)
-    }
-
-    fn build(self) -> Result<Self::Output, Error> {
-        if self.empty {
-            return Ok(None);
-        }
-        let result = self.inner_visitor.build()?;
-        Ok(Some(result))
-    }
 }
