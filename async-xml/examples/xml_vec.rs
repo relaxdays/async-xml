@@ -1,0 +1,17 @@
+use async_xml::{from_str, XmlVec};
+use async_xml_derive::FromXml;
+
+#[tokio::main]
+async fn main() {
+    let report: Report = from_str(r#"<report><ids>2 4 6 7</ids></report>"#)
+        .await
+        .unwrap();
+    println!("deserialized: {:?}", report);
+}
+
+#[derive(Debug, PartialEq, FromXml)]
+#[from_xml(tag_name = "report")]
+pub struct Report {
+    #[from_xml(child, rename = "ids")]
+    pub data: XmlVec<u32>,
+}
