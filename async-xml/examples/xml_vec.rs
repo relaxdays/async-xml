@@ -10,8 +10,8 @@ async fn main() {
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[from_xml(tag_name = "report")]
+#[async_xml(tag_name = "report")]
 pub struct Report {
-    #[from_xml(child, rename = "ids")]
+    #[async_xml(child, rename = "ids")]
     pub data: XmlVec<u32>,
 }

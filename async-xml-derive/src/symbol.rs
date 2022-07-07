@@ -4,7 +4,7 @@ use syn::Path;
 #[derive(Copy, Clone)]
 pub struct Symbol(&'static str);
 
-pub const FROM_XML: Symbol = Symbol("from_xml");
+pub const ASYNC_XML: Symbol = Symbol("async_xml");
 pub const TAG_NAME: Symbol = Symbol("tag_name");
 pub const ATTRIBUTE: Symbol = Symbol("attribute");
 pub const VALUE: Symbol = Symbol("value");

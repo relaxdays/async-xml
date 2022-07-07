@@ -22,7 +22,7 @@ impl Container {
         let mut allow_unknown_text = false;
 
         for attr in attrs {
-            if attr.path != FROM_XML {
+            if attr.path != ASYNC_XML {
                 continue;
             }
             match attr.parse_meta() {
@@ -121,7 +121,7 @@ impl Field {
         let mut from = None;
 
         for attr in attrs {
-            if attr.path != FROM_XML {
+            if attr.path != ASYNC_XML {
                 continue;
             }
             match attr.parse_meta() {

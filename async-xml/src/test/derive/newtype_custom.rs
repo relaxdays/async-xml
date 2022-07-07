@@ -22,16 +22,16 @@ async fn test_invalid() {
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[from_xml(tag_name = "report")]
+#[async_xml(tag_name = "report")]
 pub struct Report {
-    #[from_xml(attribute)]
+    #[async_xml(attribute)]
     pub id: Id,
-    #[from_xml(value)]
+    #[async_xml(value)]
     pub data: String,
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[from_xml(use_from_str)]
+#[async_xml(use_from_str)]
 pub struct Id(String);
 
 impl FromStr for Id {

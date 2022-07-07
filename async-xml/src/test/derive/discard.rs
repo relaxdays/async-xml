@@ -58,20 +58,20 @@ async fn test_attributes_disallowed() {
 
 #[derive(Debug, PartialEq, FromXml)]
 pub struct Test {
-    #[from_xml(value)]
+    #[async_xml(value)]
     text: String,
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[from_xml(allow_unknown_children)]
+#[async_xml(allow_unknown_children)]
 pub struct TestChildren {
-    #[from_xml(value)]
+    #[async_xml(value)]
     text: String,
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[from_xml(allow_unknown_attributes)]
+#[async_xml(allow_unknown_attributes)]
 pub struct TestAttributes {
-    #[from_xml(value)]
+    #[async_xml(value)]
     text: String,
 }

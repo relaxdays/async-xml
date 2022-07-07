@@ -55,13 +55,13 @@ async fn test_zst_tuple_missing() {
 
 #[derive(Debug, PartialEq, FromXml)]
 pub struct DataStruct {
-    #[from_xml(child)]
+    #[async_xml(child)]
     empty: Option<EmptyStruct>,
 }
 
 #[derive(Debug, PartialEq, FromXml)]
 pub struct DataStructReq {
-    #[from_xml(child)]
+    #[async_xml(child)]
     empty: EmptyStruct,
 }
 
@@ -70,7 +70,7 @@ pub struct EmptyStruct {}
 
 #[derive(Debug, PartialEq, FromXml)]
 pub struct DataTuple {
-    #[from_xml(child)]
+    #[async_xml(child)]
     empty: Option<EmptyTuple>,
 }
 

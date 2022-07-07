@@ -3,16 +3,18 @@ use async_xml_derive::FromXml;
 
 #[tokio::main]
 async fn main() {
-    let report: Report = from_str(r#"<report id="b"><data>text</data></report>"#).await.unwrap();
+    let report: Report = from_str(r#"<report id="b"><data>text</data></report>"#)
+        .await
+        .unwrap();
     println!("deserialized: {:?}", report);
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[from_xml(tag_name = "report")]
+#[async_xml(tag_name = "report")]
 pub struct Report {
-    #[from_xml(attribute)]
+    #[async_xml(attribute)]
     pub id: Id,
-    #[from_xml(child)]
+    #[async_xml(child)]
     pub data: Data,
 }
 

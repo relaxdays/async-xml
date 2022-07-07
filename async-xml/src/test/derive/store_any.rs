@@ -53,10 +53,10 @@ async fn test_children() {
 
 #[derive(Debug, PartialEq, FromXml)]
 pub struct Test {
-    #[from_xml(value)]
+    #[async_xml(value)]
     text: String,
-    #[from_xml(child)]
+    #[async_xml(child)]
     required: String,
-    #[from_xml(remains)]
+    #[async_xml(remains)]
     remaining: XmlNode,
 }

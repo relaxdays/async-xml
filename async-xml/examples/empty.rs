@@ -10,7 +10,7 @@ async fn main() {
 
 #[derive(Debug, PartialEq, FromXml)]
 pub struct DataTuple {
-    #[from_xml(child)]
+    #[async_xml(child)]
     empty: Option<EmptyTuple>,
 }
 

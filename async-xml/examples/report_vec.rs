@@ -11,19 +11,19 @@ async fn main() {
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[from_xml(tag_name = "report")]
+#[async_xml(tag_name = "report")]
 pub struct Report {
-    #[from_xml(attribute)]
+    #[async_xml(attribute)]
     pub id: String,
-    #[from_xml(child)]
+    #[async_xml(child)]
     pub data: Vec<ReportData>,
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[from_xml(tag_name = "data")]
+#[async_xml(tag_name = "data")]
 pub struct ReportData {
-    #[from_xml(attribute)]
+    #[async_xml(attribute)]
     pub id: String,
-    #[from_xml(value, default)]
+    #[async_xml(value, default)]
     pub data: String,
 }

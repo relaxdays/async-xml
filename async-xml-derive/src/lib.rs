@@ -11,7 +11,7 @@ mod respan;
 mod symbol;
 mod xml_struct;
 
-#[proc_macro_derive(FromXml, attributes(from_xml))]
+#[proc_macro_derive(FromXml, attributes(async_xml))]
 pub fn derive_from_xml(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     from_xml::expand_from_xml(&input)

@@ -17,20 +17,20 @@ async fn test() {
 
 #[derive(Debug, PartialEq, FromXml)]
 pub struct ResponseStatus {
-    #[from_xml(attribute)]
+    #[async_xml(attribute)]
     status: String,
 }
 
 #[derive(Debug, PartialEq, FromXml)]
 pub struct Response {
-    #[from_xml(flatten)]
+    #[async_xml(flatten)]
     status: ResponseStatus,
-    #[from_xml(child)]
+    #[async_xml(child)]
     data: ResponseData,
 }
 
 #[derive(Debug, PartialEq, FromXml)]
 pub struct ResponseData {
-    #[from_xml(value)]
+    #[async_xml(value)]
     text: String,
 }
