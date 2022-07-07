@@ -11,3 +11,4 @@ pub mod report_vec;
 pub mod store_any;
 pub mod xml_vec;
 pub mod xml_vec_derive;
+pub mod zst;

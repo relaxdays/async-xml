@@ -1,8 +1,4 @@
-use crate::{
-    attr::FieldSource,
-    ctx::Ctx,
-    field::{FieldData, FieldType},
-};
+use crate::{attr::FieldSource, ctx::Ctx, field::FieldData};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, TokenStreamExt};
 
@@ -85,14 +81,16 @@ impl<'a> StructContainer<'a> {
             ctx.syn_error(err);
         }
         ctx.check()?;
-        let struct_type = if fields.iter().all(|f| f.field_type == FieldType::Unnamed) {
-            if fields.len() == 1 {
-                StructType::Newtype
-            } else {
-                StructType::Tuple
+        let struct_type = match &data.fields {
+            syn::Fields::Named(_) => StructType::Normal,
+            syn::Fields::Unnamed(f) => {
+                if f.unnamed.len() == 1 {
+                    StructType::Newtype
+                } else {
+                    StructType::Tuple
+                }
             }
-        } else {
-            StructType::Normal
+            syn::Fields::Unit => unreachable!("Unit variant invalid for structs"),
         };
         // make sure the remains field is last
         if remain_count == 1 {

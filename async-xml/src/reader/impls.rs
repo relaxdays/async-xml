@@ -65,11 +65,11 @@ where
     }
 
     fn build(self) -> Result<Self::Output, Error> {
-        if self.empty {
-            return Ok(None);
+        match self.inner_visitor.build() {
+            Ok(t) => Ok(Some(t)),
+            Err(_) if self.empty => Ok(None),
+            Err(e) => Err(e),
         }
-        let result = self.inner_visitor.build()?;
-        Ok(Some(result))
     }
 }
 
