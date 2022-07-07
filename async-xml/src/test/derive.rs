@@ -3,6 +3,7 @@ use crate::from_str;
 use async_xml_derive::FromXml;
 
 pub mod discard;
+pub mod flatten;
 pub mod newtype;
 pub mod newtype_custom;
 pub mod newtype_int;

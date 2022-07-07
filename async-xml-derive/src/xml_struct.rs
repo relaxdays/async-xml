@@ -149,37 +149,53 @@ pub fn expand_struct(
     );
 
     let mut visitor_visit_attr_match = TokenStream::new();
+    let mut visitor_visit_attr_match_any = TokenStream::new();
     let mut visitor_visit_child_match = TokenStream::new();
+    let mut visitor_visit_child_match_any = TokenStream::new();
     let mut visitor_visit_value = TokenStream::new();
     let mut visitor_visit_tag = TokenStream::new();
     for field in &container.fields {
         field.visitor_visit(
             &mut visitor_visit_attr_match,
+            &mut visitor_visit_attr_match_any,
             &mut visitor_visit_child_match,
+            &mut visitor_visit_child_match_any,
             &mut visitor_visit_value,
             &mut visitor_visit_tag,
         );
     }
-    if visitor_visit_value.is_empty() && !container.attr.allow_unknown_text {
-        visitor_visit_value = quote! { Err(async_xml::Error::UnexpectedText) };
+    if container.attr.allow_unknown_text {
+        visitor_visit_value.append_all(quote! {
+            #[allow(unreachable_code)]
+            Ok(())
+        });
+    } else {
+        visitor_visit_value.append_all(quote! {
+            #[allow(unreachable_code)]
+            Err(async_xml::Error::UnexpectedText)
+        });
     }
 
     let mut visitor_build = TokenStream::new();
     visitor_build.append_all(container.fields.iter().map(|f| f.visitor_build()));
 
     let visitor = quote! {
-        pub struct #visitor_name {
+        pub struct #visitor_name<B> where B: tokio::io::AsyncBufRead + Unpin + Send {
             #visitor_fields
+            _phantom: core::marker::PhantomData<B>,
         }
-        impl Default for #visitor_name {
+        impl<B: tokio::io::AsyncBufRead + Unpin + Send> Default for #visitor_name<B> {
             fn default() -> Self {
-                Self { #visitor_default }
+                Self {
+                    #visitor_default
+                    _phantom: core::marker::PhantomData,
+                }
             }
         }
     };
     let mut visitor_impl: syn::ItemImpl = syn::parse2(quote! {
         #[async_trait::async_trait]
-        impl<B: tokio::io::AsyncBufRead + Send + Unpin> async_xml::Visitor<B> for #visitor_name {
+        impl<B: tokio::io::AsyncBufRead + Send + Unpin> async_xml::Visitor<B> for #visitor_name<B> {
             type Output = #name;
         }
     })
@@ -239,7 +255,10 @@ pub fn expand_struct(
             fn visit_attribute(&mut self, name: &str, value: &str) -> Result<(), async_xml::Error> {
                 match name {
                     #visitor_visit_attr_match
-                    _ => { #unknown_attr }
+                    _ => {
+                        #visitor_visit_attr_match_any
+                        #unknown_attr
+                    }
                 }
                 #[allow(unreachable_code)]
                 Ok(())
@@ -250,7 +269,11 @@ pub fn expand_struct(
     visitor_impl.items.push(
         syn::parse2(quote! {
             fn visit_text(&mut self, text: &str) -> Result<(), async_xml::Error> {
-                #visitor_visit_value
+
+                #[allow(unreachable_code)]
+                {
+                    #visitor_visit_value
+                }
             }
         })
         .unwrap(),
@@ -269,7 +292,10 @@ pub fn expand_struct(
             ) -> Result<(), async_xml::Error> {
                 match name {
                     #visitor_visit_child_match
-                    _ => { #unknown_child }
+                    _ => {
+                        #visitor_visit_child_match_any
+                        #unknown_child
+                    }
                 }
                 #[allow(unreachable_code)]
                 Ok(())
@@ -282,7 +308,7 @@ pub fn expand_struct(
         #visitor
         #visitor_impl
         impl<B: tokio::io::AsyncBufRead + Send + Unpin> async_xml::reader::FromXml<B> for #name {
-            type Visitor = #visitor_name;
+            type Visitor = #visitor_name<B>;
         }
     };
 

@@ -94,6 +94,7 @@ pub enum FieldSource {
     Attribute,
     Child,
     Value,
+    Flatten,
     Remains,
 }
 
@@ -139,6 +140,11 @@ impl Field {
                             }
                             NestedMeta::Meta(Meta::Path(m)) if m == CHILD => {
                                 if source.replace(FieldSource::Child).is_some() {
+                                    ctx.error_spanned_by(m, "source already specified");
+                                }
+                            }
+                            NestedMeta::Meta(Meta::Path(m)) if m == FLATTEN => {
+                                if source.replace(FieldSource::Flatten).is_some() {
                                     ctx.error_spanned_by(m, "source already specified");
                                 }
                             }
