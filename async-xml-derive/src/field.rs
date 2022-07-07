@@ -27,23 +27,34 @@ impl<'a> FieldData<'a> {
     pub fn from_field(ctx: &Ctx, field: &'a syn::Field, index: usize) -> Result<Self, ()> {
         let attrs = Field::from_attrs(ctx, &field.attrs);
         let inner_de_type = if let Some(ty) = attrs.from.as_ref() {
-            &ty
+            ty
         } else {
             &field.ty
         };
         let type_type = get_type_path_type(inner_de_type);
         let visitor_field_type = match type_type {
             TypePathType::Any => syn::parse2(quote! { Option<#inner_de_type> }).unwrap(),
-            TypePathType::Vec | TypePathType::Option => inner_de_type.to_owned(),
+            TypePathType::Vec | TypePathType::Option | TypePathType::XmlNode => {
+                inner_de_type.to_owned()
+            }
         };
         let deserialization_type = match type_type {
-            TypePathType::Any | TypePathType::Option => inner_de_type.clone(),
+            TypePathType::Any | TypePathType::Option | TypePathType::XmlNode => {
+                inner_de_type.clone()
+            }
             TypePathType::Vec => get_generic_arg(inner_de_type),
         };
 
         match (type_type, attrs.source) {
             // allow child elements to be read into a vec
             (TypePathType::Vec, FieldSource::Child) => {}
+            // disallow non-xmlnode for remains
+            (t, s) if (t == TypePathType::XmlNode) ^ (s == FieldSource::Remains) => {
+                ctx.error_spanned_by(field, "remains must be used with XmlNode");
+                return Err(());
+            }
+            // allow xmlnode remains
+            (TypePathType::XmlNode, FieldSource::Remains) => {}
             // allow "standard" types for all sources
             (TypePathType::Any, _) => {}
             // allow option types for all sources
@@ -96,6 +107,9 @@ impl<'a> FieldData<'a> {
             TypePathType::Any | TypePathType::Option => {
                 quote! { #name: None, }
             }
+            TypePathType::XmlNode => {
+                quote! { #name: Default::default(), }
+            }
         }
     }
 
@@ -104,6 +118,7 @@ impl<'a> FieldData<'a> {
         visit_attr: &mut TokenStream,
         visit_child: &mut TokenStream,
         visit_text: &mut TokenStream,
+        visit_tag: &mut TokenStream,
     ) {
         let tag = &self.tag_name;
         let ident = &self.visitor_field_name;
@@ -130,6 +145,22 @@ impl<'a> FieldData<'a> {
                         Ok(())
                     }
                 };
+            }
+            FieldSource::Remains => {
+                // assume we are the last field so we are the very last match arm for attr and child
+                visit_attr.append_all(quote! {
+                    _ => {
+                        <#ty as async_xml::reader::Visitor<B>>::visit_attribute(&mut self.#ident, name, value)?;
+                    }
+                });
+                visit_child.append_all(quote! {
+                    _ => {
+                        <#ty as async_xml::reader::Visitor<B>>::visit_child(&mut self.#ident, name, reader).await?;
+                    }
+                });
+                visit_tag.append_all(quote! {
+                    <#ty as async_xml::reader::Visitor<B>>::visit_tag(&mut self.#ident, name)?;
+                })
             }
             FieldSource::Child => match self.type_type {
                 TypePathType::Vec => {
@@ -159,13 +190,14 @@ impl<'a> FieldData<'a> {
                         }
                     });
                 }
+                TypePathType::XmlNode => unreachable!(),
             },
         }
     }
 
     pub fn visitor_build(&self) -> TokenStream {
         match self.type_type {
-            TypePathType::Vec | TypePathType::Option => TokenStream::new(),
+            TypePathType::Vec | TypePathType::Option | TypePathType::XmlNode => TokenStream::new(),
             TypePathType::Any => self.build_default(),
         }
     }
@@ -178,6 +210,9 @@ impl<'a> FieldData<'a> {
             }
             TypePathType::Vec | TypePathType::Option => {
                 quote! { self.#name.into() }
+            }
+            TypePathType::XmlNode => {
+                quote! { self.#name }
             }
         };
         match struct_type {
@@ -213,6 +248,7 @@ impl<'a> FieldData<'a> {
             FieldSource::Attribute => quote! {async_xml::Error::MissingAttribute(#tag.into())},
             FieldSource::Child => quote! {async_xml::Error::MissingChild(#tag.into())},
             FieldSource::Value => quote! {async_xml::Error::MissingText},
+            FieldSource::Remains => unreachable!("remains cannot fail"),
         }
     }
 }

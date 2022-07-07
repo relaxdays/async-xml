@@ -54,6 +54,49 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
         self.reader.decoder()
     }
 
+    pub async fn skip_element(&mut self) -> Result<(), Error> {
+        let dec = self.reader.decoder();
+        let start_tag;
+        match self.peek_event().await? {
+            Event::Start(start) => {
+                // check for start element name
+                let name = start.local_name();
+                let name = dec.decode(name);
+                // store name to match expected end element
+                start_tag = name.to_string();
+                // remove peeked start event
+                self.read_event().await?;
+            }
+            _ => {
+                return Err(Error::MissingStart);
+            }
+        }
+        let mut depth = 0_usize;
+
+        loop {
+            match self.peek_event().await? {
+                Event::End(end) => {
+                    let name = end.local_name();
+                    let name = dec.decode(name).to_string();
+                    // remove peeked end event
+                    self.read_event().await?;
+                    // check for name
+                    if name == start_tag && depth == 0 {
+                        return Ok(());
+                    }
+                    depth -= 1;
+                }
+                Event::Start(_) => {
+                    self.read_event().await?;
+                    depth += 1;
+                }
+                _ => {
+                    self.read_event().await?;
+                }
+            }
+        }
+    }
+
     pub async fn deserialize<T>(&mut self) -> Result<T, Error>
     where
         T: FromXml<B>,
@@ -72,6 +115,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                         return Err(Error::WrongStart(expected_name.into(), name.into()));
                     }
                 }
+                visitor.visit_tag(&name)?;
                 // store name to match expected end element
                 start_tag = name.to_string();
                 // read attributes
@@ -141,6 +185,11 @@ pub trait Visitor<B: AsyncBufRead + Send + Unpin> {
 
     fn start_name() -> Option<&'static str> {
         None
+    }
+
+    #[allow(unused_variables)]
+    fn visit_tag(&mut self, name: &str) -> Result<(), Error> {
+        Ok(())
     }
 
     #[allow(unused_variables)]
