@@ -280,6 +280,6 @@ impl XmlFromStr for u64 {}
 impl XmlFromStr for u128 {}
 impl XmlFromStr for bool {}
 impl XmlFromStr for char {}
-impl XmlFromStr for &'static str {}
+impl XmlFromStr for &str {}
 
 impl<T: XmlFromStr> XmlFromStr for &'static T {}
