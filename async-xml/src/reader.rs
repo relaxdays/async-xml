@@ -47,7 +47,9 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
 
     async fn next_event_internal(&mut self) -> quick_xml::Result<Event<'static>> {
         let mut buf = Vec::new();
-        Ok(self.reader.read_event(&mut buf).await?.into_owned())
+        let event = self.reader.read_event(&mut buf).await?.into_owned();
+        tracing::trace!("read XML event: {:?}", event);
+        Ok(event)
     }
 
     pub fn decoder(&self) -> Decoder {
@@ -110,6 +112,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                 // check for start element name
                 let name = start.local_name();
                 let name = dec.decode(name);
+                tracing::debug!("deserializing XML element <{:?}>", name);
                 if let Some(expected_name) = T::Visitor::start_name() {
                     if name != expected_name {
                         return Err(Error::WrongStart(expected_name.into(), name.into()));
@@ -124,6 +127,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                     let attr_name = dec.decode(attr.key);
                     let attr_value = attr.unescaped_value()?;
                     let attr_value = dec.decode(&attr_value);
+                    tracing::trace!("visiting attribute: {:?}", attr_name);
                     visitor.visit_attribute(&attr_name, &attr_value)?;
                 }
                 // remove peeked start event
@@ -145,11 +149,13 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                     if name != start_tag {
                         return Err(Error::WrongEnd(start_tag, name));
                     }
+                    tracing::trace!("finishing deserialization of XML element <{:?}>", name);
                     return visitor.build();
                 }
                 Event::Text(text) => {
                     let text = text.unescaped()?;
                     let text = dec.decode(&text);
+                    tracing::trace!("visiting element text");
                     visitor.visit_text(&text)?;
                     // remove peeked event
                     self.read_event().await?;
@@ -158,6 +164,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                     // peeked child start element -> find name and call into sub-element
                     let name = start.local_name();
                     let name = dec.decode(name).to_string();
+                    tracing::trace!("visiting child: {:?}", name);
                     visitor.visit_child(&name, self).await?;
                 }
                 _ => {
