@@ -10,7 +10,7 @@ async fn main() {
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[async_xml(tag_name = "report")]
+#[async_xml(rename = "report")]
 pub struct Report {
     #[async_xml(attribute)]
     pub id: Id,
@@ -19,7 +19,7 @@ pub struct Report {
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[async_xml(use_from_str)]
+#[async_xml(from_str)]
 pub struct Id(String);
 
 impl FromStr for Id {

@@ -1,6 +1,8 @@
-use crate::util::{XmlAttribute, XmlNode};
-
-use super::*;
+use async_xml::{
+    from_str,
+    util::{XmlAttribute, XmlNode},
+};
+use async_xml_derive::FromXml;
 
 #[tokio::test]
 async fn test_children() {

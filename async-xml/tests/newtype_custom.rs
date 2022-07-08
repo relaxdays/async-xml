@@ -1,5 +1,4 @@
-use crate as async_xml;
-use crate::from_str;
+use async_xml::from_str;
 use async_xml_derive::FromXml;
 use std::str::FromStr;
 
@@ -22,7 +21,7 @@ async fn test_invalid() {
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[async_xml(tag_name = "report")]
+#[async_xml(rename = "report")]
 pub struct Report {
     #[async_xml(attribute)]
     pub id: Id,
@@ -31,7 +30,7 @@ pub struct Report {
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[async_xml(use_from_str)]
+#[async_xml(from_str)]
 pub struct Id(String);
 
 impl FromStr for Id {

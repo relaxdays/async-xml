@@ -1,4 +1,5 @@
-use super::*;
+use async_xml::from_str;
+use async_xml_derive::FromXml;
 
 #[tokio::test]
 async fn test_zst_struct() {
