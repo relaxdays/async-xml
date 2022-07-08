@@ -140,26 +140,63 @@ impl<'a> FieldData<'a> {
         let field_ty = &self.visitor_field_type;
         match self.attrs.source {
             FieldSource::Attribute => {
-                visit_attr.append_all(quote! {
-                   #tag => {
-                        let mut visitor = <#ty as async_xml::reader::FromXml<B>>::Visitor::default();
-                        <<#ty as async_xml::reader::FromXml<B>>::Visitor as async_xml::reader::Visitor<B>>::visit_text(&mut visitor, value)?;
-                        let val = <<#ty as async_xml::reader::FromXml<B>>::Visitor as async_xml::reader::Visitor<B>>::build(visitor)?;
-                        self.#ident.replace(val);
+                let build_val = quote! {
+                    let mut visitor = <#ty as ::async_xml::reader::FromXml<B>>::Visitor::default();
+                    <<#ty as ::async_xml::reader::FromXml<B>>::Visitor as ::async_xml::reader::Visitor<B>>::visit_text(&mut visitor, value)?;
+                    let val = <<#ty as ::async_xml::reader::FromXml<B>>::Visitor as ::async_xml::reader::Visitor<B>>::build(visitor)?;
+                };
+                match self.type_type {
+                    TypePathType::Any => {
+                        visit_attr.append_all(quote! {
+                           #tag => {
+                                #build_val
+                                self.#ident.replace(val);
+                            }
+                        });
                     }
-                });
+                    TypePathType::Option => {
+                        visit_attr.append_all(quote! {
+                           #tag => {
+                                #build_val
+                                self.#ident = val;
+                            }
+                        });
+                    }
+                    TypePathType::Vec | TypePathType::XmlNode => {
+                        unreachable!("vec and xmlnode aren't valid for attribute")
+                    }
+                }
             }
             FieldSource::Value => {
-                visit_text.append_all(quote! {
-                    let mut visitor = <#ty as async_xml::reader::FromXml<B>>::Visitor::default();
-                    <<#ty as async_xml::reader::FromXml<B>>::Visitor as async_xml::reader::Visitor<B>>::visit_text(&mut visitor, text)?;
-                    let val = <<#ty as async_xml::reader::FromXml<B>>::Visitor as async_xml::reader::Visitor<B>>::build(visitor)?;
-                    return if self.#ident.replace(val).is_some() {
-                        Err(async_xml::Error::DoubleText)
-                    } else {
-                        Ok(())
-                    };
-                });
+                let build_val = quote! {
+                    let mut visitor = <#ty as ::async_xml::reader::FromXml<B>>::Visitor::default();
+                    <<#ty as ::async_xml::reader::FromXml<B>>::Visitor as ::async_xml::reader::Visitor<B>>::visit_text(&mut visitor, text)?;
+                    let val = <<#ty as ::async_xml::reader::FromXml<B>>::Visitor as ::async_xml::reader::Visitor<B>>::build(visitor)?;
+                };
+                match self.type_type {
+                    TypePathType::Any => {
+                        visit_text.append_all(quote! {
+                            #build_val
+                            return if self.#ident.replace(val).is_some() {
+                                Err(::async_xml::Error::DoubleText)
+                            } else {
+                                Ok(())
+                            };
+                        });
+                    }
+                    TypePathType::Option => {
+                        visit_text.append_all(quote! {
+                            if self.#ident.is_some() {
+                                return Err(::async_xml::Error::DoubleText);
+                            }
+                            #build_val
+                            self.#ident = val;
+                        });
+                    }
+                    TypePathType::Vec | TypePathType::XmlNode => {
+                        unreachable!("vec and xmlnode aren't valid for attribute")
+                    }
+                }
             }
             FieldSource::Remains | FieldSource::Flatten => {
                 visit_attr_any.append_all(quote! {
@@ -241,7 +278,7 @@ impl<'a> FieldData<'a> {
                 quote! { #name.into() }
             }
             TypePathType::Vec | TypePathType::Option => {
-                quote! { self.#name.into() }
+                quote! { self.#name }
             }
             TypePathType::XmlNode => {
                 quote! { #name }
