@@ -6,7 +6,7 @@ use tokio::io::AsyncBufRead;
 
 mod impls;
 
-pub use impls::XmlFromStr;
+pub use impls::{FromStringVisitor, FromVisitor, TryFromVisitor, XmlFromStr};
 
 pub struct PeekingReader<B: AsyncBufRead> {
     reader: AsyncReader<B>,

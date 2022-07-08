@@ -4,10 +4,17 @@ use crate::symbol::*;
 use proc_macro2::TokenStream;
 use syn::{Attribute, Meta, NestedMeta};
 
+pub enum From {
+    Default,
+    FromStr,
+    From(syn::Type),
+    TryFrom(syn::Type),
+}
+
 /// container attributes
 pub struct Container {
     pub tag_name: Option<String>,
-    pub use_from_str: bool,
+    pub from: From,
     pub allow_unknown_children: bool,
     pub allow_unknown_attributes: bool,
     pub allow_unknown_text: bool,
@@ -16,7 +23,7 @@ pub struct Container {
 impl Container {
     pub fn from_attrs(ctx: &Ctx, attrs: &Vec<Attribute>) -> Self {
         let mut tag_name = None;
-        let mut use_from_str = false;
+        let mut from = None;
         let mut allow_unknown_children = false;
         let mut allow_unknown_attributes = false;
         let mut allow_unknown_text = false;
@@ -29,7 +36,7 @@ impl Container {
                 Ok(Meta::List(meta)) => {
                     for nested in meta.nested {
                         match nested {
-                            NestedMeta::Meta(Meta::NameValue(m)) if m.path == TAG_NAME => {
+                            NestedMeta::Meta(Meta::NameValue(m)) if m.path == RENAME => {
                                 let str = get_lit_str(ctx, &m.lit);
                                 if let Ok(str) = str {
                                     if tag_name.replace(str.value()).is_some() {
@@ -37,8 +44,26 @@ impl Container {
                                     }
                                 }
                             }
-                            NestedMeta::Meta(Meta::Path(m)) if m == USE_FROM_STR => {
-                                use_from_str = true;
+                            NestedMeta::Meta(Meta::Path(m)) if m == FROM_STR => {
+                                if from.replace(From::FromStr).is_some() {
+                                    ctx.error_spanned_by(m, "from already specified");
+                                }
+                            }
+                            NestedMeta::Meta(Meta::NameValue(m)) if m.path == FROM => {
+                                let _type = get_lit_str_as_type(ctx, &m.lit);
+                                if let Ok(_type) = _type {
+                                    if from.replace(From::From(_type)).is_some() {
+                                        ctx.error_spanned_by(m, "from already specified");
+                                    }
+                                }
+                            }
+                            NestedMeta::Meta(Meta::NameValue(m)) if m.path == TRY_FROM => {
+                                let _type = get_lit_str_as_type(ctx, &m.lit);
+                                if let Ok(_type) = _type {
+                                    if from.replace(From::TryFrom(_type)).is_some() {
+                                        ctx.error_spanned_by(m, "from already specified");
+                                    }
+                                }
                             }
                             NestedMeta::Meta(Meta::Path(m)) if m == ALLOW_UNKNOWN_CHILDREN => {
                                 allow_unknown_children = true;
@@ -74,7 +99,7 @@ impl Container {
 
         Self {
             tag_name,
-            use_from_str,
+            from: from.unwrap_or(From::Default),
             allow_unknown_children,
             allow_unknown_attributes,
             allow_unknown_text,
@@ -86,7 +111,7 @@ pub struct Field {
     pub source: FieldSource,
     pub default: Default,
     pub rename: Option<String>,
-    pub from: Option<syn::Type>,
+    pub from: From,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -174,10 +199,23 @@ impl Field {
                                     }
                                 }
                             }
+                            NestedMeta::Meta(Meta::Path(m)) if m == FROM_STR => {
+                                if from.replace(From::FromStr).is_some() {
+                                    ctx.error_spanned_by(m, "from already specified");
+                                }
+                            }
                             NestedMeta::Meta(Meta::NameValue(m)) if m.path == FROM => {
                                 let _type = get_lit_str_as_type(ctx, &m.lit);
                                 if let Ok(_type) = _type {
-                                    if from.replace(_type).is_some() {
+                                    if from.replace(From::From(_type)).is_some() {
+                                        ctx.error_spanned_by(m, "from already specified");
+                                    }
+                                }
+                            }
+                            NestedMeta::Meta(Meta::NameValue(m)) if m.path == TRY_FROM => {
+                                let _type = get_lit_str_as_type(ctx, &m.lit);
+                                if let Ok(_type) = _type {
+                                    if from.replace(From::TryFrom(_type)).is_some() {
                                         ctx.error_spanned_by(m, "from already specified");
                                     }
                                 }
@@ -204,7 +242,7 @@ impl Field {
             source: source.unwrap_or(FieldSource::Value),
             default: default.unwrap_or(Default::None),
             rename,
-            from,
+            from: from.unwrap_or(From::Default),
         }
     }
 }

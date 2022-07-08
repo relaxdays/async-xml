@@ -1,4 +1,4 @@
-use crate::attr::{Field, FieldSource};
+use crate::attr::{self, Field, FieldSource};
 use crate::ctx::Ctx;
 use crate::path::{get_generic_arg, get_type_path_type, TypePathType};
 use crate::xml_struct::StructType;
@@ -26,10 +26,11 @@ pub struct FieldData<'a> {
 impl<'a> FieldData<'a> {
     pub fn from_field(ctx: &Ctx, field: &'a syn::Field, index: usize) -> Result<Self, ()> {
         let attrs = Field::from_attrs(ctx, &field.attrs);
-        let inner_de_type = if let Some(ty) = attrs.from.as_ref() {
-            ty
-        } else {
-            &field.ty
+        let inner_de_type = match &attrs.from {
+            attr::From::Default => &field.ty,
+            attr::From::From(t) => t,
+            attr::From::FromStr => unimplemented!(),
+            attr::From::TryFrom(t) => unimplemented!(),
         };
         let type_type = if attrs.source == FieldSource::Flatten {
             // force flattened fields to be used as if they were xml nodes

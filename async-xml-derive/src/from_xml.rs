@@ -1,4 +1,4 @@
-use crate::attr::Container;
+use crate::attr::{self, Container};
 use crate::ctx::Ctx;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -8,11 +8,36 @@ pub fn expand_from_xml(input: &syn::DeriveInput) -> Result<TokenStream, Vec<syn:
     let container = Container::from_attrs(&ctx, &input.attrs);
     ctx.check()?;
 
-    if container.use_from_str {
-        let name = &input.ident;
-        return Ok(quote! {
-            impl async_xml::reader::XmlFromStr for #name {}
-        });
+    match &container.from {
+        attr::From::Default => {}
+        attr::From::From(t) => {
+            let name = &input.ident;
+            return Ok(quote! {
+                impl<B> ::async_xml::reader::FromXml<B> for #name
+                where
+                    B: ::tokio::io::AsyncBufRead + Send + Unpin,
+                {
+                    type Visitor = ::async_xml::reader::FromVisitor<B, #name, #t>;
+                }
+            });
+        }
+        attr::From::TryFrom(t) => {
+            let name = &input.ident;
+            return Ok(quote! {
+                impl<B> ::async_xml::reader::FromXml<B> for #name
+                where
+                    B: ::tokio::io::AsyncBufRead + Send + Unpin,
+                {
+                    type Visitor = ::async_xml::reader::TryFromVisitor<B, #name, #t, <#name as ::core::convert::TryFrom<#t>>::Error>;
+                }
+            });
+        }
+        attr::From::FromStr => {
+            let name = &input.ident;
+            return Ok(quote! {
+                impl ::async_xml::reader::XmlFromStr for #name {}
+            });
+        }
     }
 
     match &input.data {

@@ -1,6 +1,6 @@
 use super::{FromXml, PeekingReader, Visitor};
 use crate::Error;
-use std::str::FromStr;
+use std::{marker::PhantomData, str::FromStr};
 use tokio::io::AsyncBufRead;
 
 impl<B, T> FromXml<B> for Option<T>
@@ -133,6 +133,138 @@ where
             return Err(Error::MissingText);
         };
         Ok(data)
+    }
+}
+
+/// Generic visitor for forwarding all calls to an inner visitor and converting into the target
+/// type using its [`From`] implementation.
+pub struct FromVisitor<B, Target, FromType>
+where
+    B: AsyncBufRead + Send + Unpin,
+    Target: From<FromType>,
+    FromType: FromXml<B>,
+{
+    inner: FromType::Visitor,
+    _target: PhantomData<Target>,
+}
+
+impl<B, Target, FromType> Default for FromVisitor<B, Target, FromType>
+where
+    B: AsyncBufRead + Send + Unpin,
+    Target: From<FromType>,
+    FromType: FromXml<B>,
+{
+    fn default() -> Self {
+        Self {
+            inner: FromType::Visitor::default(),
+            _target: PhantomData,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl<B, Target, FromType> Visitor<B> for FromVisitor<B, Target, FromType>
+where
+    B: AsyncBufRead + Send + Unpin,
+    Target: From<FromType> + Send,
+    FromType: FromXml<B>,
+{
+    type Output = Target;
+
+    fn start_name() -> Option<&'static str> {
+        None
+    }
+
+    fn visit_tag(&mut self, name: &str) -> Result<(), Error> {
+        self.inner.visit_tag(name)
+    }
+
+    fn visit_text(&mut self, text: &str) -> Result<(), Error> {
+        self.inner.visit_text(text)
+    }
+
+    fn visit_attribute(&mut self, name: &str, value: &str) -> Result<(), Error> {
+        self.inner.visit_attribute(name, value)
+    }
+
+    async fn visit_child(
+        &mut self,
+        name: &str,
+        reader: &mut PeekingReader<B>,
+    ) -> Result<(), Error> {
+        self.inner.visit_child(name, reader).await
+    }
+
+    fn build(self) -> Result<Self::Output, Error> {
+        let from = self.inner.build()?;
+        Ok(from.into())
+    }
+}
+
+/// Generic visitor for forwarding all calls to an inner visitor and converting into the target
+/// type using its [`TryFrom`] implementation.
+pub struct TryFromVisitor<B, Target, FromType, E>
+where
+    B: AsyncBufRead + Send + Unpin,
+    Target: TryFrom<FromType, Error = E>,
+    FromType: FromXml<B>,
+{
+    inner: FromType::Visitor,
+    _target: PhantomData<Target>,
+}
+
+impl<B, Target, FromType, E> Default for TryFromVisitor<B, Target, FromType, E>
+where
+    B: AsyncBufRead + Send + Unpin,
+    Target: TryFrom<FromType, Error = E>,
+    FromType: FromXml<B>,
+{
+    fn default() -> Self {
+        Self {
+            inner: FromType::Visitor::default(),
+            _target: PhantomData,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl<B, Target, FromType, E> Visitor<B> for TryFromVisitor<B, Target, FromType, E>
+where
+    B: AsyncBufRead + Send + Unpin,
+    Target: TryFrom<FromType, Error = E> + Send,
+    FromType: FromXml<B>,
+    E: std::fmt::Display,
+{
+    type Output = Target;
+
+    fn start_name() -> Option<&'static str> {
+        None
+    }
+
+    fn visit_tag(&mut self, name: &str) -> Result<(), Error> {
+        self.inner.visit_tag(name)
+    }
+
+    fn visit_text(&mut self, text: &str) -> Result<(), Error> {
+        self.inner.visit_text(text)
+    }
+
+    fn visit_attribute(&mut self, name: &str, value: &str) -> Result<(), Error> {
+        self.inner.visit_attribute(name, value)
+    }
+
+    async fn visit_child(
+        &mut self,
+        name: &str,
+        reader: &mut PeekingReader<B>,
+    ) -> Result<(), Error> {
+        self.inner.visit_child(name, reader).await
+    }
+
+    fn build(self) -> Result<Self::Output, Error> {
+        let from = self.inner.build()?;
+        from.try_into()
+            .map_err(|e| Error::Deserialization(format!("error converting: {}", e)))
     }
 }
 
