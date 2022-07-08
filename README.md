@@ -18,7 +18,7 @@ async fn main() {
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[async_xml(tag_name = "report")]
+#[async_xml(rename = "report")]
 pub struct Report {
     #[async_xml(attribute)]
     pub id: String,
@@ -27,7 +27,7 @@ pub struct Report {
 }
 
 #[derive(Debug, PartialEq, FromXml)]
-#[async_xml(tag_name = "data")]
+#[async_xml(rename = "data")]
 pub struct ReportData {
     #[async_xml(value)]
     pub data: String,
