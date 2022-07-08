@@ -125,6 +125,7 @@ pub fn expand_struct(
     let visitor_name = &container.visitor_name;
     let name = &container.name;
     let tag_name = &container.tag_name;
+    let vis = &input.vis;
 
     let mut visitor_fields = TokenStream::new();
     visitor_fields.append_all(
@@ -180,7 +181,7 @@ pub fn expand_struct(
     visitor_build.append_all(container.fields.iter().map(|f| f.visitor_build()));
 
     let visitor = quote! {
-        pub struct #visitor_name<B> where B: tokio::io::AsyncBufRead + Unpin + Send {
+        #vis struct #visitor_name<B> where B: tokio::io::AsyncBufRead + Unpin + Send {
             #visitor_fields
             _phantom: core::marker::PhantomData<B>,
         }
