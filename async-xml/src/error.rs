@@ -37,3 +37,9 @@ impl From<quick_xml::Error> for Error {
         Self::Xml(e)
     }
 }
+
+impl From<quick_xml::events::attributes::AttrError> for Error {
+    fn from(e: quick_xml::events::attributes::AttrError) -> Self {
+        Self::Xml(e.into())
+    }
+}

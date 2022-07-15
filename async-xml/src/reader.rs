@@ -1,21 +1,22 @@
 use crate::Error;
 use quick_xml::events::Event;
-use quick_xml::reader::Decoder;
-use quick_xml::AsyncReader;
+use quick_xml::Decoder;
 use tokio::io::AsyncBufRead;
 
 mod impls;
 
 pub use impls::{FromStringVisitor, FromVisitor, TryFromVisitor, XmlFromStr};
 
+pub type XmlReader<R> = quick_xml::Reader<quick_xml::AsyncReader<R>>;
+
 pub struct PeekingReader<B: AsyncBufRead> {
-    reader: AsyncReader<B>,
+    reader: XmlReader<B>,
     peeked_event: Option<Event<'static>>,
 }
 
 impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
     pub fn from_buf(reader: B) -> Self {
-        let mut reader = AsyncReader::from_reader(reader);
+        let mut reader = XmlReader::from_async_reader(reader);
         Self::set_reader_defaults(&mut reader);
         Self {
             reader,
@@ -24,10 +25,10 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
     }
 
     pub fn into_inner(self) -> B {
-        self.reader.into_underlying_reader()
+        self.reader.into_inner()
     }
 
-    fn set_reader_defaults(reader: &mut AsyncReader<B>) {
+    fn set_reader_defaults(reader: &mut XmlReader<B>) {
         reader.expand_empty_elements(true).trim_text(true);
     }
 
@@ -47,7 +48,11 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
 
     async fn next_event_internal(&mut self) -> quick_xml::Result<Event<'static>> {
         let mut buf = Vec::new();
-        let event = self.reader.read_event(&mut buf).await?.into_owned();
+        let event = self
+            .reader
+            .read_event_into_async(&mut buf)
+            .await?
+            .into_owned();
         tracing::trace!("read XML event: {:?}", event);
         Ok(event)
     }
@@ -63,7 +68,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
             Event::Start(start) => {
                 // check for start element name
                 let name = start.local_name();
-                let name = dec.decode(name);
+                let name = dec.decode(name.as_ref())?;
                 // store name to match expected end element
                 start_tag = name.to_string();
                 // remove peeked start event
@@ -79,7 +84,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
             match self.peek_event().await? {
                 Event::End(end) => {
                     let name = end.local_name();
-                    let name = dec.decode(name).to_string();
+                    let name = dec.decode(name.as_ref())?.to_string();
                     // remove peeked end event
                     self.read_event().await?;
                     // check for name
@@ -111,7 +116,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
             Event::Start(start) => {
                 // check for start element name
                 let name = start.local_name();
-                let name = dec.decode(name);
+                let name = dec.decode(name.as_ref())?;
                 tracing::debug!("deserializing XML element <{:?}>", name);
                 if let Some(expected_name) = T::Visitor::start_name() {
                     if name != expected_name {
@@ -124,9 +129,9 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                 // read attributes
                 for attr in start.attributes() {
                     let attr = attr?;
-                    let attr_name = dec.decode(attr.key);
-                    let attr_value = attr.unescaped_value()?;
-                    let attr_value = dec.decode(&attr_value);
+                    let attr_name = dec.decode(attr.key.as_ref())?;
+                    let attr_value = attr.unescape_value()?;
+                    let attr_value = dec.decode(&attr_value)?;
                     tracing::trace!("visiting attribute: {:?}", attr_name);
                     visitor.visit_attribute(&attr_name, &attr_value)?;
                 }
@@ -142,7 +147,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
             match self.peek_event().await? {
                 Event::End(end) => {
                     let name = end.local_name();
-                    let name = dec.decode(name).to_string();
+                    let name = dec.decode(name.as_ref())?.to_string();
                     // remove peeked end event
                     self.read_event().await?;
                     // check for name
@@ -153,8 +158,8 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                     return visitor.build();
                 }
                 Event::Text(text) => {
-                    let text = text.unescaped()?;
-                    let text = dec.decode(&text);
+                    let text = text.unescape()?;
+                    let text = dec.decode(&text)?;
                     tracing::trace!("visiting element text");
                     visitor.visit_text(&text)?;
                     // remove peeked event
@@ -163,7 +168,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                 Event::Start(start) => {
                     // peeked child start element -> find name and call into sub-element
                     let name = start.local_name();
-                    let name = dec.decode(name).to_string();
+                    let name = dec.decode(name.as_ref())?.to_string();
                     tracing::trace!("visiting child: {:?}", name);
                     visitor.visit_child(&name, self).await?;
                 }
