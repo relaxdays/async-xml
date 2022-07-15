@@ -173,7 +173,7 @@ pub fn expand_struct(
     } else {
         visitor_visit_value.append_all(quote! {
             #[allow(unreachable_code)]
-            Err(async_xml::Error::UnexpectedText)
+            Err(::async_xml::Error::UnexpectedText)
         });
     }
 
@@ -185,7 +185,7 @@ pub fn expand_struct(
             #visitor_fields
             _phantom: core::marker::PhantomData<B>,
         }
-        impl<B: tokio::io::AsyncBufRead + Unpin + Send> Default for #visitor_name<B> {
+        impl<B: ::tokio::io::AsyncBufRead + Unpin + Send> Default for #visitor_name<B> {
             fn default() -> Self {
                 Self {
                     #visitor_default
@@ -196,7 +196,7 @@ pub fn expand_struct(
     };
     let mut visitor_impl: syn::ItemImpl = syn::parse2(quote! {
         #[async_trait::async_trait]
-        impl<B: tokio::io::AsyncBufRead + Send + Unpin> async_xml::Visitor<B> for #visitor_name<B> {
+        impl<B: ::tokio::io::AsyncBufRead + Send + Unpin> ::async_xml::Visitor<B> for #visitor_name<B> {
             type Output = #name;
         }
     })
@@ -205,7 +205,7 @@ pub fn expand_struct(
     let visitor_fn_build = match container.struct_type {
         StructType::Normal => {
             quote! {
-                fn build(self) -> Result<#name, async_xml::Error> {
+                fn build(self) -> ::core::result::Result<#name, ::async_xml::Error> {
                     #visitor_build
 
                     Ok(#name {
@@ -216,7 +216,7 @@ pub fn expand_struct(
         }
         StructType::Newtype | StructType::Tuple => {
             quote! {
-                fn build(self) -> Result<#name, async_xml::Error> {
+                fn build(self) -> ::core::result::Result<#name, ::async_xml::Error> {
                     #visitor_build
 
                     Ok(#name(
@@ -239,7 +239,7 @@ pub fn expand_struct(
     );
     visitor_impl.items.push(
         syn::parse2(quote! {
-            fn visit_tag(&mut self, name: &str) -> Result<(), async_xml::Error> {
+            fn visit_tag(&mut self, name: &str) -> ::core::result::Result<(), ::async_xml::Error> {
                 #visitor_visit_tag
                 Ok(())
             }
@@ -249,11 +249,11 @@ pub fn expand_struct(
     let unknown_attr = if container.attr.allow_unknown_attributes {
         TokenStream::new()
     } else {
-        quote! { return Err(async_xml::Error::UnexpectedAttribute(name.into())); }
+        quote! { return Err(::async_xml::Error::UnexpectedAttribute(name.into())); }
     };
     visitor_impl.items.push(
         syn::parse2(quote! {
-            fn visit_attribute(&mut self, name: &str, value: &str) -> Result<(), async_xml::Error> {
+            fn visit_attribute(&mut self, name: &str, value: &str) -> ::core::result::Result<(), ::async_xml::Error> {
                 match name {
                     #visitor_visit_attr_match
                     _ => {
@@ -269,7 +269,7 @@ pub fn expand_struct(
     );
     visitor_impl.items.push(
         syn::parse2(quote! {
-            fn visit_text(&mut self, text: &str) -> Result<(), async_xml::Error> {
+            fn visit_text(&mut self, text: &str) -> ::core::result::Result<(), ::async_xml::Error> {
 
                 #[allow(unreachable_code)]
                 {
@@ -282,15 +282,15 @@ pub fn expand_struct(
     let unknown_child = if container.attr.allow_unknown_children {
         quote! { reader.skip_element().await?; }
     } else {
-        quote! { return Err(async_xml::Error::UnexpectedChild(name.into())); }
+        quote! { return Err(::async_xml::Error::UnexpectedChild(name.into())); }
     };
     visitor_impl.items.push(
         syn::parse2(quote! {
             async fn visit_child(
                 &mut self,
                 name: &str,
-                reader: &mut async_xml::reader::PeekingReader<B>,
-            ) -> Result<(), async_xml::Error> {
+                reader: &mut ::async_xml::reader::PeekingReader<B>,
+            ) -> ::core::result::Result<(), ::async_xml::Error> {
                 match name {
                     #visitor_visit_child_match
                     _ => {
@@ -308,7 +308,7 @@ pub fn expand_struct(
     let expanded = quote! {
         #visitor
         #visitor_impl
-        impl<B: tokio::io::AsyncBufRead + Send + Unpin> async_xml::reader::FromXml<B> for #name {
+        impl<B: ::tokio::io::AsyncBufRead + Send + Unpin> ::async_xml::reader::FromXml<B> for #name {
             type Visitor = #visitor_name<B>;
         }
     };

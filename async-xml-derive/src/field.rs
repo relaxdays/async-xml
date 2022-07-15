@@ -42,7 +42,7 @@ impl<'a> FieldData<'a> {
             TypePathType::Any => syn::parse2(quote! { Option<#inner_de_type> }).unwrap(),
             TypePathType::Vec | TypePathType::Option => inner_de_type.to_owned(),
             TypePathType::XmlNode => {
-                syn::parse2(quote! { <#inner_de_type as async_xml::reader::FromXml<B>>::Visitor })
+                syn::parse2(quote! { <#inner_de_type as ::async_xml::reader::FromXml<B>>::Visitor })
                     .unwrap()
             }
         };
@@ -201,25 +201,25 @@ impl<'a> FieldData<'a> {
             FieldSource::Remains | FieldSource::Flatten => {
                 visit_attr_any.append_all(quote! {
                     // ignore unexpected attribute errors here to maybe pass on to remains/other flattens
-                    match <#field_ty as async_xml::reader::Visitor<B>>::visit_attribute(&mut self.#ident, name, value) {
-                        Err(async_xml::Error::UnexpectedAttribute(_)) => {},
+                    match <#field_ty as ::async_xml::reader::Visitor<B>>::visit_attribute(&mut self.#ident, name, value) {
+                        Err(::async_xml::Error::UnexpectedAttribute(_)) => {},
                         r => return r,
                     }
                 });
                 visit_child_any.append_all(quote! {
                     // ignore unexpected child errors here to maybe pass on to remains/other flattens
-                    match <#field_ty as async_xml::reader::Visitor<B>>::visit_child(&mut self.#ident, name, reader).await {
-                        Err(async_xml::Error::UnexpectedChild(_)) => {},
+                    match <#field_ty as ::async_xml::reader::Visitor<B>>::visit_child(&mut self.#ident, name, reader).await {
+                        Err(::async_xml::Error::UnexpectedChild(_)) => {},
                         r => return r,
                     }
                 });
                 visit_tag.append_all(quote! {
-                    <#field_ty as async_xml::reader::Visitor<B>>::visit_tag(&mut self.#ident, name)?;
+                    <#field_ty as ::async_xml::reader::Visitor<B>>::visit_tag(&mut self.#ident, name)?;
                 });
                 visit_text.append_all(quote! {
                     // ignore unexpected text errors here to maybe pass on to remains/other flattens
-                    match <#field_ty as async_xml::reader::Visitor<B>>::visit_text(&mut self.#ident, text) {
-                        Err(async_xml::Error::UnexpectedText) => {},
+                    match <#field_ty as ::async_xml::reader::Visitor<B>>::visit_text(&mut self.#ident, text) {
+                        Err(::async_xml::Error::UnexpectedText) => {},
                         r => return r,
                     }
                 });
@@ -236,7 +236,7 @@ impl<'a> FieldData<'a> {
                     visit_child.append_all(quote! {
                         #tag => {
                             if self.#ident.is_some() {
-                                return Err(async_xml::Error::DoubleChild(name.into()));
+                                return Err(::async_xml::Error::DoubleChild(name.into()));
                             }
                             self.#ident = Some(reader.deserialize::<#ty>().await?);
                         }
@@ -246,7 +246,7 @@ impl<'a> FieldData<'a> {
                     visit_child.append_all(quote! {
                         #tag => {
                             if self.#ident.is_some() {
-                                return Err(async_xml::Error::DoubleChild(name.into()));
+                                return Err(::async_xml::Error::DoubleChild(name.into()));
                             }
                             self.#ident = reader.deserialize::<#ty>().await?;
                         }
@@ -265,7 +265,7 @@ impl<'a> FieldData<'a> {
                 let name = &self.visitor_field_name;
                 let ty = &self.visitor_field_type;
                 quote! {
-                    let #name = <#ty as async_xml::reader::Visitor<B>>::build(self.#name)?;
+                    let #name = <#ty as ::async_xml::reader::Visitor<B>>::build(self.#name)?;
                 }
             }
         }
