@@ -32,14 +32,11 @@ pub enum Error {
     Deserialization(String),
 }
 
-impl From<quick_xml::Error> for Error {
-    fn from(e: quick_xml::Error) -> Self {
-        Self::Xml(e)
-    }
-}
-
-impl From<quick_xml::events::attributes::AttrError> for Error {
-    fn from(e: quick_xml::events::attributes::AttrError) -> Self {
+impl<T> From<T> for Error
+where
+    T: Into<quick_xml::Error>,
+{
+    fn from(e: T) -> Self {
         Self::Xml(e.into())
     }
 }

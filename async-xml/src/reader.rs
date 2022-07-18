@@ -130,8 +130,8 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                 for attr in start.attributes() {
                     let attr = attr?;
                     let attr_name = dec.decode(attr.key.as_ref())?;
-                    let attr_value = attr.unescape_value()?;
-                    let attr_value = dec.decode(&attr_value)?;
+                    let attr_value = dec.decode(attr.value.as_ref())?;
+                    let attr_value = quick_xml::escape::unescape(&attr_value)?;
                     tracing::trace!("visiting attribute: {:?}", attr_name);
                     visitor.visit_attribute(&attr_name, &attr_value)?;
                 }
@@ -158,8 +158,8 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                     return visitor.build();
                 }
                 Event::Text(text) => {
-                    let text = text.unescape()?;
                     let text = dec.decode(&text)?;
+                    let text = quick_xml::escape::unescape(&text)?;
                     tracing::trace!("visiting element text");
                     visitor.visit_text(&text)?;
                     // remove peeked event
