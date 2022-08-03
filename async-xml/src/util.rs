@@ -80,7 +80,7 @@ pub struct XmlAttribute {
     pub value: String,
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 impl<B> Visitor<B> for XmlNode
 where
     B: AsyncBufRead + Send + Unpin,

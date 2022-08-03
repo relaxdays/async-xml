@@ -7,7 +7,7 @@ mod impls;
 
 pub use impls::{FromStringVisitor, FromVisitor, TryFromVisitor, XmlFromStr};
 
-pub type XmlReader<R> = quick_xml::Reader<quick_xml::AsyncReader<R>>;
+pub type XmlReader<R> = quick_xml::Reader<R>;
 
 pub struct PeekingReader<B: AsyncBufRead> {
     reader: XmlReader<B>,
@@ -16,7 +16,7 @@ pub struct PeekingReader<B: AsyncBufRead> {
 
 impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
     pub fn from_buf(reader: B) -> Self {
-        let mut reader = XmlReader::from_async_reader(reader);
+        let mut reader = XmlReader::from_reader(reader);
         Self::set_reader_defaults(&mut reader);
         Self {
             reader,
@@ -191,7 +191,7 @@ pub trait FromXml<B: AsyncBufRead + Send + Unpin> {
     type Visitor: Visitor<B, Output = Self> + Default + Send;
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 pub trait Visitor<B: AsyncBufRead + Send + Unpin> {
     type Output;
 

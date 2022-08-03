@@ -195,7 +195,7 @@ pub fn expand_struct(
         }
     };
     let mut visitor_impl: syn::ItemImpl = syn::parse2(quote! {
-        #[async_trait::async_trait]
+        #[async_trait::async_trait(?Send)]
         impl<B: ::tokio::io::AsyncBufRead + Send + Unpin> ::async_xml::Visitor<B> for #visitor_name<B> {
             type Output = #name;
         }

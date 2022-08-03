@@ -33,7 +33,7 @@ where
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 impl<B, T> Visitor<B> for OptionalVisitor<T, B>
 where
     B: AsyncBufRead + Send + Unpin,
@@ -102,7 +102,7 @@ where
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 impl<B, T, E> Visitor<B> for FromStringVisitor<T>
 where
     B: AsyncBufRead + Send + Unpin,
@@ -162,7 +162,7 @@ where
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 impl<B, Target, FromType> Visitor<B> for FromVisitor<B, Target, FromType>
 where
     B: AsyncBufRead + Send + Unpin,
@@ -227,7 +227,7 @@ where
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 impl<B, Target, FromType, E> Visitor<B> for TryFromVisitor<B, Target, FromType, E>
 where
     B: AsyncBufRead + Send + Unpin,

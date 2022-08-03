@@ -18,7 +18,7 @@ pub struct ReportVisitor {
     data: Option<ReportData>,
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 impl<B: AsyncBufRead + Send + Unpin> Visitor<B> for ReportVisitor {
     type Output = Report;
 
