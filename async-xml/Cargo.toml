@@ -15,8 +15,7 @@ default = []
 derive = ["async-xml-derive"]
 
 [dependencies]
-# this is waiting for https://github.com/tafia/quick-xml/pull/417
-quick-xml = { git = "https://github.com/Mingun/quick-xml", branch = "async", features = ["async-tokio", "encoding"] }
+quick-xml = { version = "^0.24", features = ["async-tokio", "encoding"] }
 tokio = { version = "^1.19", features = ["io-std"] }
 async-trait = "0.1.56"
 thiserror = "1.0.31"
