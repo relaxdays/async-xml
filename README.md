@@ -1,5 +1,8 @@
 # async-xml
 
+![crates.io](https://img.shields.io/crates/v/async-xml)
+![crates.io](https://img.shields.io/docsrs/async-xml)
+
 A crate based on `tokio` and `quick-xml` for deserializing XML data asynchronously. Includes derive-macros for deserializing things.
 
 ## Example
