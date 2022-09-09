@@ -88,6 +88,7 @@ where
     type Output = Self;
 
     fn visit_tag(&mut self, name: &str) -> Result<(), Error> {
+        tracing::trace!("XmlNode deserializing element <{}>", name);
         self.name = name.to_string();
         Ok(())
     }
@@ -115,6 +116,7 @@ where
     }
 
     fn build(self) -> Result<Self::Output, Error> {
+        tracing::trace!("XmlNode done deserializing element <{}>", self.name);
         Ok(self)
     }
 }

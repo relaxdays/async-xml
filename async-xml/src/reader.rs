@@ -69,6 +69,7 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                 // check for start element name
                 let name = start.local_name();
                 let name = dec.decode(name.as_ref())?;
+                tracing::debug!("Skipping over element <{}>", name);
                 // store name to match expected end element
                 start_tag = name.to_string();
                 // remove peeked start event
@@ -89,13 +90,16 @@ impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
                     self.read_event().await?;
                     // check for name
                     if name == start_tag && depth == 0 {
+                        tracing::trace!("done skipping");
                         return Ok(());
                     }
                     depth -= 1;
+                    tracing::trace!("ascending to depth {:?}", depth);
                 }
                 Event::Start(_) => {
                     self.read_event().await?;
                     depth += 1;
+                    tracing::trace!("descending to depth {:?}", depth);
                 }
                 _ => {
                     self.read_event().await?;
