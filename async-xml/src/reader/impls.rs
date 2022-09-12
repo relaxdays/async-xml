@@ -1,3 +1,5 @@
+//! Visitors and implementations for deserialization some standard library types
+
 use super::{FromXml, PeekingReader, Visitor};
 use crate::Error;
 use std::{marker::PhantomData, str::FromStr};
@@ -11,6 +13,10 @@ where
     type Visitor = OptionalVisitor<T, B>;
 }
 
+/// A visitor for deserializing empty XML elements as an [`Option::None`]
+///
+/// All `visit_*` calls will be forwarded to an inner visitor but [`build()`](Self::build) will return [`None`]
+/// if no `visit_*` methods have been called and the inner visitor returns an error on building.
 pub struct OptionalVisitor<T, B>
 where
     B: AsyncBufRead + Unpin,
@@ -85,6 +91,9 @@ where
     type Visitor = FromStringVisitor<T>;
 }
 
+/// A visitor for deserializing types implementing [`FromStr`]
+///
+/// If the XML element contains attributes or child elements, this visitor will return an error.
 pub struct FromStringVisitor<T>
 where
     T: FromStr,

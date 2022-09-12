@@ -1,3 +1,5 @@
+//! Miscellaneous helper types
+
 use crate::{
     reader::{FromXml, XmlFromStr},
     Error, Visitor,

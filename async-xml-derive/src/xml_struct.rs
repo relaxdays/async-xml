@@ -180,7 +180,12 @@ pub fn expand_struct(
     let mut visitor_build = TokenStream::new();
     visitor_build.append_all(container.fields.iter().map(|f| f.visitor_build()));
 
+    let visitor_doc = format!(
+        "A [`Visitor`](::async_xml::Visitor) for deserializing a [`{}`]",
+        name
+    );
     let visitor = quote! {
+        #[doc = #visitor_doc]
         #vis struct #visitor_name<B> where B: tokio::io::AsyncBufRead + Unpin {
             #visitor_fields
             _phantom: core::marker::PhantomData<B>,
