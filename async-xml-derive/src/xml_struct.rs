@@ -186,6 +186,7 @@ pub fn expand_struct(
     );
     let visitor = quote! {
         #[doc = #visitor_doc]
+        #[doc(hidden)]
         #vis struct #visitor_name<B> where B: tokio::io::AsyncBufRead + Unpin {
             #visitor_fields
             _phantom: core::marker::PhantomData<B>,
