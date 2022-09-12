@@ -1,6 +1,6 @@
 [package]
 name = "async-xml"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["Sophie Tauchert <sophie@999eagle.moe>"]
 license = "MIT OR Apache-2.0"
@@ -19,7 +19,7 @@ quick-xml = { version = "^0.24", features = ["async-tokio", "encoding"] }
 tokio = { version = "^1.19", features = ["io-std"] }
 async-trait = "0.1.56"
 thiserror = "1.0.31"
-async-xml-derive = { version = "0.1.1", path = "../async-xml-derive", optional = true }
+async-xml-derive = { version = "0.2.1", path = "../async-xml-derive", optional = true }
 tracing = "0.1"
 
 [dev-dependencies]
