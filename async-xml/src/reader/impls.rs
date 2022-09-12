@@ -5,7 +5,7 @@ use tokio::io::AsyncBufRead;
 
 impl<B, T> FromXml<B> for Option<T>
 where
-    B: AsyncBufRead + Send + Unpin,
+    B: AsyncBufRead + Unpin,
     T: FromXml<B>,
 {
     type Visitor = OptionalVisitor<T, B>;
@@ -13,7 +13,7 @@ where
 
 pub struct OptionalVisitor<T, B>
 where
-    B: AsyncBufRead + Send + Unpin,
+    B: AsyncBufRead + Unpin,
     T: FromXml<B>,
 {
     empty: bool,
@@ -22,7 +22,7 @@ where
 
 impl<T, B> Default for OptionalVisitor<T, B>
 where
-    B: AsyncBufRead + Send + Unpin,
+    B: AsyncBufRead + Unpin,
     T: FromXml<B>,
 {
     fn default() -> Self {
@@ -36,7 +36,7 @@ where
 #[async_trait::async_trait(?Send)]
 impl<B, T> Visitor<B> for OptionalVisitor<T, B>
 where
-    B: AsyncBufRead + Send + Unpin,
+    B: AsyncBufRead + Unpin,
     T: FromXml<B>,
 {
     type Output = Option<T>;
@@ -78,8 +78,8 @@ pub trait XmlFromStr {}
 
 impl<B, T, E> FromXml<B> for T
 where
-    B: AsyncBufRead + Send + Unpin,
-    T: XmlFromStr + FromStr<Err = E> + Send,
+    B: AsyncBufRead + Unpin,
+    T: XmlFromStr + FromStr<Err = E>,
     E: std::fmt::Display,
 {
     type Visitor = FromStringVisitor<T>;
@@ -94,7 +94,7 @@ where
 
 impl<T, E> Default for FromStringVisitor<T>
 where
-    T: XmlFromStr + FromStr<Err = E> + Send,
+    T: XmlFromStr + FromStr<Err = E>,
     E: std::fmt::Display,
 {
     fn default() -> Self {
@@ -105,8 +105,8 @@ where
 #[async_trait::async_trait(?Send)]
 impl<B, T, E> Visitor<B> for FromStringVisitor<T>
 where
-    B: AsyncBufRead + Send + Unpin,
-    T: XmlFromStr + FromStr<Err = E> + Send,
+    B: AsyncBufRead + Unpin,
+    T: XmlFromStr + FromStr<Err = E>,
     E: std::fmt::Display,
 {
     type Output = T;
@@ -140,7 +140,7 @@ where
 /// type using its [`From`] implementation.
 pub struct FromVisitor<B, Target, FromType>
 where
-    B: AsyncBufRead + Send + Unpin,
+    B: AsyncBufRead + Unpin,
     Target: From<FromType>,
     FromType: FromXml<B>,
 {
@@ -150,7 +150,7 @@ where
 
 impl<B, Target, FromType> Default for FromVisitor<B, Target, FromType>
 where
-    B: AsyncBufRead + Send + Unpin,
+    B: AsyncBufRead + Unpin,
     Target: From<FromType>,
     FromType: FromXml<B>,
 {
@@ -165,8 +165,8 @@ where
 #[async_trait::async_trait(?Send)]
 impl<B, Target, FromType> Visitor<B> for FromVisitor<B, Target, FromType>
 where
-    B: AsyncBufRead + Send + Unpin,
-    Target: From<FromType> + Send,
+    B: AsyncBufRead + Unpin,
+    Target: From<FromType>,
     FromType: FromXml<B>,
 {
     type Output = Target;
@@ -205,7 +205,7 @@ where
 /// type using its [`TryFrom`] implementation.
 pub struct TryFromVisitor<B, Target, FromType, E>
 where
-    B: AsyncBufRead + Send + Unpin,
+    B: AsyncBufRead + Unpin,
     Target: TryFrom<FromType, Error = E>,
     FromType: FromXml<B>,
 {
@@ -215,7 +215,7 @@ where
 
 impl<B, Target, FromType, E> Default for TryFromVisitor<B, Target, FromType, E>
 where
-    B: AsyncBufRead + Send + Unpin,
+    B: AsyncBufRead + Unpin,
     Target: TryFrom<FromType, Error = E>,
     FromType: FromXml<B>,
 {
@@ -230,8 +230,8 @@ where
 #[async_trait::async_trait(?Send)]
 impl<B, Target, FromType, E> Visitor<B> for TryFromVisitor<B, Target, FromType, E>
 where
-    B: AsyncBufRead + Send + Unpin,
-    Target: TryFrom<FromType, Error = E> + Send,
+    B: AsyncBufRead + Unpin,
+    Target: TryFrom<FromType, Error = E>,
     FromType: FromXml<B>,
     E: std::fmt::Display,
 {

@@ -181,11 +181,11 @@ pub fn expand_struct(
     visitor_build.append_all(container.fields.iter().map(|f| f.visitor_build()));
 
     let visitor = quote! {
-        #vis struct #visitor_name<B> where B: tokio::io::AsyncBufRead + Unpin + Send {
+        #vis struct #visitor_name<B> where B: tokio::io::AsyncBufRead + Unpin {
             #visitor_fields
             _phantom: core::marker::PhantomData<B>,
         }
-        impl<B: ::tokio::io::AsyncBufRead + Unpin + Send> Default for #visitor_name<B> {
+        impl<B: ::tokio::io::AsyncBufRead + Unpin> Default for #visitor_name<B> {
             fn default() -> Self {
                 Self {
                     #visitor_default
@@ -196,7 +196,7 @@ pub fn expand_struct(
     };
     let mut visitor_impl: syn::ItemImpl = syn::parse2(quote! {
         #[async_trait::async_trait(?Send)]
-        impl<B: ::tokio::io::AsyncBufRead + Send + Unpin> ::async_xml::Visitor<B> for #visitor_name<B> {
+        impl<B: ::tokio::io::AsyncBufRead + Unpin> ::async_xml::Visitor<B> for #visitor_name<B> {
             type Output = #name;
         }
     })
@@ -308,7 +308,7 @@ pub fn expand_struct(
     let expanded = quote! {
         #visitor
         #visitor_impl
-        impl<B: ::tokio::io::AsyncBufRead + Send + Unpin> ::async_xml::reader::FromXml<B> for #name {
+        impl<B: ::tokio::io::AsyncBufRead + Unpin> ::async_xml::reader::FromXml<B> for #name {
             type Visitor = #visitor_name<B>;
         }
     };

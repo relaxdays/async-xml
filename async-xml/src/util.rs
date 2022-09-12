@@ -83,7 +83,7 @@ pub struct XmlAttribute {
 #[async_trait::async_trait(?Send)]
 impl<B> Visitor<B> for XmlNode
 where
-    B: AsyncBufRead + Send + Unpin,
+    B: AsyncBufRead + Unpin,
 {
     type Output = Self;
 
@@ -123,7 +123,7 @@ where
 
 impl<B> FromXml<B> for XmlNode
 where
-    B: AsyncBufRead + Send + Unpin,
+    B: AsyncBufRead + Unpin,
 {
     type Visitor = Self;
 }

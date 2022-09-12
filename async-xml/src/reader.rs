@@ -14,7 +14,7 @@ pub struct PeekingReader<B: AsyncBufRead> {
     peeked_event: Option<Event<'static>>,
 }
 
-impl<B: AsyncBufRead + Unpin + Send> PeekingReader<B> {
+impl<B: AsyncBufRead + Unpin> PeekingReader<B> {
     pub fn from_buf(reader: B) -> Self {
         let mut reader = XmlReader::from_reader(reader);
         Self::set_reader_defaults(&mut reader);
@@ -191,12 +191,12 @@ impl<'r> PeekingReader<&'r [u8]> {
     }
 }
 
-pub trait FromXml<B: AsyncBufRead + Send + Unpin> {
-    type Visitor: Visitor<B, Output = Self> + Default + Send;
+pub trait FromXml<B: AsyncBufRead + Unpin> {
+    type Visitor: Visitor<B, Output = Self> + Default;
 }
 
 #[async_trait::async_trait(?Send)]
-pub trait Visitor<B: AsyncBufRead + Send + Unpin> {
+pub trait Visitor<B: AsyncBufRead + Unpin> {
     type Output;
 
     fn start_name() -> Option<&'static str> {

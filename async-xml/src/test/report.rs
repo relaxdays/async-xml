@@ -19,7 +19,7 @@ pub struct ReportVisitor {
 }
 
 #[async_trait::async_trait(?Send)]
-impl<B: AsyncBufRead + Send + Unpin> Visitor<B> for ReportVisitor {
+impl<B: AsyncBufRead + Unpin> Visitor<B> for ReportVisitor {
     type Output = Report;
 
     fn visit_attribute(&mut self, name: &str, value: &str) -> Result<()> {
@@ -58,7 +58,7 @@ impl<B: AsyncBufRead + Send + Unpin> Visitor<B> for ReportVisitor {
     }
 }
 
-impl<B: AsyncBufRead + Send + Unpin> FromXml<B> for Report {
+impl<B: AsyncBufRead + Unpin> FromXml<B> for Report {
     type Visitor = ReportVisitor;
 }
 
@@ -67,7 +67,7 @@ pub struct ReportDataVisitor {
     data: Option<String>,
 }
 
-impl<B: AsyncBufRead + Send + Unpin> Visitor<B> for ReportDataVisitor {
+impl<B: AsyncBufRead + Unpin> Visitor<B> for ReportDataVisitor {
     type Output = ReportData;
 
     fn visit_text(&mut self, text: &str) -> Result<()> {
@@ -88,7 +88,7 @@ impl<B: AsyncBufRead + Send + Unpin> Visitor<B> for ReportDataVisitor {
     }
 }
 
-impl<B: AsyncBufRead + Send + Unpin> FromXml<B> for ReportData {
+impl<B: AsyncBufRead + Unpin> FromXml<B> for ReportData {
     type Visitor = ReportDataVisitor;
 }
 

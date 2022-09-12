@@ -15,7 +15,7 @@ pub fn expand_from_xml(input: &syn::DeriveInput) -> Result<TokenStream, Vec<syn:
             return Ok(quote! {
                 impl<B> ::async_xml::reader::FromXml<B> for #name
                 where
-                    B: ::tokio::io::AsyncBufRead + Send + Unpin,
+                    B: ::tokio::io::AsyncBufRead + Unpin,
                 {
                     type Visitor = ::async_xml::reader::FromVisitor<B, #name, #t>;
                 }
@@ -26,7 +26,7 @@ pub fn expand_from_xml(input: &syn::DeriveInput) -> Result<TokenStream, Vec<syn:
             return Ok(quote! {
                 impl<B> ::async_xml::reader::FromXml<B> for #name
                 where
-                    B: ::tokio::io::AsyncBufRead + Send + Unpin,
+                    B: ::tokio::io::AsyncBufRead + Unpin,
                 {
                     type Visitor = ::async_xml::reader::TryFromVisitor<B, #name, #t, <#name as ::core::convert::TryFrom<#t>>::Error>;
                 }
