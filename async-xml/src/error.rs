@@ -44,6 +44,9 @@ pub enum Error {
     /// Encountered an unexpected text event
     #[error("Found unexpected text")]
     UnexpectedText,
+    /// Bubbling deserialization error
+    #[error("Error deserializing element <{0}>: {1}")]
+    InnerDeserialiaztionError(String, Box<Error>),
     /// General deserialization error
     #[error("Deserialization error: {0}")]
     Deserialization(String),

@@ -234,7 +234,9 @@ impl<'a> FieldData<'a> {
                 TypePathType::Vec => {
                     visit_child.append_all(quote! {
                         #tag => {
-                            self.#ident.push(reader.deserialize::<#ty>().await?);
+                            self.#ident.push(reader.deserialize::<#ty>().await.map_err(|e| {
+                                ::async_xml::Error::InnerDeserialiaztionError(#tag.into(), Box::new(e))
+                            })?);
                         }
                     });
                 }
@@ -244,7 +246,9 @@ impl<'a> FieldData<'a> {
                             if self.#ident.is_some() {
                                 return Err(::async_xml::Error::DoubleChild(name.into()));
                             }
-                            self.#ident = Some(reader.deserialize::<#ty>().await?);
+                            self.#ident = Some(reader.deserialize::<#ty>().await.map_err(|e| {
+                                ::async_xml::Error::InnerDeserialiaztionError(#tag.into(), Box::new(e))
+                            })?);
                         }
                     });
                 }
@@ -254,7 +258,9 @@ impl<'a> FieldData<'a> {
                             if self.#ident.is_some() {
                                 return Err(::async_xml::Error::DoubleChild(name.into()));
                             }
-                            self.#ident = reader.deserialize::<#ty>().await?;
+                            self.#ident = reader.deserialize::<#ty>().await.map_err(|e| {
+                                ::async_xml::Error::InnerDeserialiaztionError(#tag.into(), Box::new(e))
+                            })?;
                         }
                     });
                 }
@@ -317,7 +323,9 @@ impl<'a> FieldData<'a> {
                 let #name = if let Some(#name) = self.#name {
                     #name
                 } else {
-                    return Err(#build_error);
+                    let e = #build_error;
+                    ::tracing::debug!("throwing build error: {:?}", e);
+                    return Err(e);
                 };
             }
         } else {
@@ -333,9 +341,9 @@ impl<'a> FieldData<'a> {
     fn build_error(&self) -> TokenStream {
         let tag = &self.tag_name;
         match self.attrs.source {
-            FieldSource::Attribute => quote! {async_xml::Error::MissingAttribute(#tag.into())},
-            FieldSource::Child => quote! {async_xml::Error::MissingChild(#tag.into())},
-            FieldSource::Value => quote! {async_xml::Error::MissingText},
+            FieldSource::Attribute => quote! {::async_xml::Error::MissingAttribute(#tag.into())},
+            FieldSource::Child => quote! {::async_xml::Error::MissingChild(#tag.into())},
+            FieldSource::Value => quote! {::async_xml::Error::MissingText},
             FieldSource::Remains | FieldSource::Flatten => {
                 unreachable!("remains/flatten cannot fail")
             }

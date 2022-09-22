@@ -113,7 +113,12 @@ where
         _name: &str,
         reader: &mut crate::PeekingReader<B>,
     ) -> Result<(), Error> {
-        self.children.push(reader.deserialize().await?);
+        self.children.push(
+            reader
+                .deserialize()
+                .await
+                .map_err(|e| Error::InnerDeserialiaztionError(self.name.clone(), Box::new(e)))?,
+        );
         Ok(())
     }
 
