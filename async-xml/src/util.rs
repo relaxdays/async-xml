@@ -129,3 +129,68 @@ where
 {
     type Visitor = Self;
 }
+
+/// A generic visitor that will discard all errors thrown during build
+///
+/// This visitor can be wrapped around any existing visitor and its output type will be the wrapped visitor's output
+/// type wrapped in an [`Option`]. Errors thrown during build will be discarded and a [`None`]-value will be returned.
+pub struct DiscardErrorVisitor<V, B>
+where
+    B: AsyncBufRead + Unpin,
+    V: Visitor<B>,
+{
+    inner_visitor: V,
+    _phantom: core::marker::PhantomData<B>,
+}
+
+impl<V, B> Default for DiscardErrorVisitor<V, B>
+where
+    B: AsyncBufRead + Unpin,
+    V: Visitor<B> + Default,
+{
+    fn default() -> Self {
+        Self {
+            inner_visitor: V::default(),
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+
+#[async_trait::async_trait(?Send)]
+impl<V, B> Visitor<B> for DiscardErrorVisitor<V, B>
+where
+    B: AsyncBufRead + Unpin,
+    V: Visitor<B>,
+{
+    type Output = Option<V::Output>;
+
+    fn start_name() -> Option<&'static str> {
+        V::start_name()
+    }
+
+    fn visit_attribute(&mut self, name: &str, value: &str) -> Result<(), Error> {
+        self.inner_visitor.visit_attribute(name, value)
+    }
+
+    async fn visit_child(
+        &mut self,
+        name: &str,
+        reader: &mut crate::PeekingReader<B>,
+    ) -> Result<(), Error> {
+        self.inner_visitor.visit_child(name, reader).await
+    }
+
+    fn visit_text(&mut self, text: &str) -> Result<(), Error> {
+        self.inner_visitor.visit_text(text)
+    }
+
+    fn build(self) -> Result<Self::Output, Error> {
+        match self.inner_visitor.build() {
+            Ok(t) => Ok(Some(t)),
+            Err(e) => {
+                tracing::trace!("discarding build error: {:?}", e);
+                Ok(None)
+            }
+        }
+    }
+}
