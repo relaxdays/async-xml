@@ -6,6 +6,7 @@ pub enum TypePathType {
     Vec,
     Option,
     XmlNode,
+    OptionalNode,
 }
 
 pub fn get_type_path_type(ty: &syn::Type) -> TypePathType {

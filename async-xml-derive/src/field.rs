@@ -13,13 +13,21 @@ pub enum FieldType {
 }
 
 pub struct FieldData<'a> {
+    /// source field
     pub inner: &'a syn::Field,
+    /// attributes on the source field
     pub attrs: Field,
+    /// the type to actually deserialize
     pub deserialization_type: Type,
+    /// whether this is a named or unnamed field
     pub field_type: FieldType,
+    /// the kind of type this field is
     pub type_type: TypePathType,
+    /// name of the corresponding field in the generated visitor struct
     pub visitor_field_name: Ident,
+    /// type of the corresponding field in the generated visitor struct
     pub visitor_field_type: Type,
+    /// xml element name to deserialize into this field
     pub tag_name: Lit,
 }
 
@@ -30,47 +38,45 @@ impl<'a> FieldData<'a> {
             attr::From::Default => &field.ty,
             attr::From::From(t) => t,
             attr::From::FromStr => unimplemented!(),
-            attr::From::TryFrom(t) => unimplemented!(),
+            attr::From::TryFrom(_t) => unimplemented!(),
         };
         let type_type = if attrs.source == FieldSource::Flatten {
             // force flattened fields to be used as if they were xml nodes
-            TypePathType::XmlNode
+            match get_type_path_type(inner_de_type) {
+                TypePathType::Option => TypePathType::OptionalNode,
+                _ => TypePathType::XmlNode,
+            }
         } else {
             get_type_path_type(inner_de_type)
-        };
-        let visitor_field_type = match type_type {
-            TypePathType::Any => syn::parse2(quote! { Option<#inner_de_type> }).unwrap(),
-            TypePathType::Vec | TypePathType::Option => inner_de_type.to_owned(),
-            TypePathType::XmlNode => {
-                syn::parse2(quote! { <#inner_de_type as ::async_xml::reader::FromXml<B>>::Visitor })
-                    .unwrap()
-            }
         };
         let deserialization_type = match type_type {
             TypePathType::Any | TypePathType::Option | TypePathType::XmlNode => {
                 inner_de_type.clone()
             }
-            TypePathType::Vec => get_generic_arg(inner_de_type),
+            TypePathType::Vec | TypePathType::OptionalNode => get_generic_arg(inner_de_type),
+        };
+        let visitor_field_type = match type_type {
+            TypePathType::Any => syn::parse2(quote! { Option<#inner_de_type> }).unwrap(),
+            TypePathType::Vec | TypePathType::Option => inner_de_type.to_owned(),
+            TypePathType::XmlNode | TypePathType::OptionalNode => syn::parse2(
+                quote! { <#deserialization_type as ::async_xml::reader::FromXml<B>>::Visitor },
+            )
+            .unwrap(),
         };
 
         match (type_type, attrs.source) {
             // allow child elements to be read into a vec
             (TypePathType::Vec, FieldSource::Child) => {}
-            // disallow non-xmlnode for remains
-            (t, s)
-                if (t == TypePathType::XmlNode)
-                    ^ (s == FieldSource::Remains || s == FieldSource::Flatten) =>
-            {
-                ctx.error_spanned_by(field, "remains must be used with XmlNode");
-                return Err(());
-            }
             // allow xmlnode remains and flatten
             (TypePathType::XmlNode, FieldSource::Remains) => {}
             (TypePathType::XmlNode, FieldSource::Flatten) => {}
+            // allow optionalnode only for flatten
+            (TypePathType::OptionalNode, FieldSource::Flatten) => {}
             // allow "standard" types for all sources
             (TypePathType::Any, _) => {}
             // allow option types for all sources
             (TypePathType::Option, _) => {}
+            // disallow everything else
             _ => {
                 ctx.error_spanned_by(field, "field type invalid for this source");
                 return Err(());
@@ -119,7 +125,7 @@ impl<'a> FieldData<'a> {
             TypePathType::Any | TypePathType::Option => {
                 quote! { #name: None, }
             }
-            TypePathType::XmlNode => {
+            TypePathType::XmlNode | TypePathType::OptionalNode => {
                 quote! { #name: Default::default(), }
             }
         }
@@ -162,7 +168,7 @@ impl<'a> FieldData<'a> {
                             }
                         });
                     }
-                    TypePathType::Vec | TypePathType::XmlNode => {
+                    TypePathType::Vec | TypePathType::XmlNode | TypePathType::OptionalNode => {
                         unreachable!("vec and xmlnode aren't valid for attribute")
                     }
                 }
@@ -193,8 +199,8 @@ impl<'a> FieldData<'a> {
                             self.#ident = val;
                         });
                     }
-                    TypePathType::Vec | TypePathType::XmlNode => {
-                        unreachable!("vec and xmlnode aren't valid for attribute")
+                    TypePathType::Vec | TypePathType::XmlNode | TypePathType::OptionalNode => {
+                        unreachable!("vec and xmlnode aren't valid for value")
                     }
                 }
             }
@@ -252,7 +258,7 @@ impl<'a> FieldData<'a> {
                         }
                     });
                 }
-                TypePathType::XmlNode => unreachable!(),
+                TypePathType::XmlNode | TypePathType::OptionalNode => unreachable!(),
             },
         }
     }
@@ -261,6 +267,19 @@ impl<'a> FieldData<'a> {
         match self.type_type {
             TypePathType::Vec | TypePathType::Option => TokenStream::new(),
             TypePathType::Any => self.build_default(),
+            TypePathType::OptionalNode => {
+                let name = &self.visitor_field_name;
+                let ty = &self.visitor_field_type;
+                quote! {
+                    let #name = match <#ty as ::async_xml::reader::Visitor<B>>::build(self.#name) {
+                        Ok(#name) => Some(#name),
+                        Err(e) => {
+                            ::tracing::trace!("discarding flattened build error: {:?}", e);
+                            None
+                        }
+                    };
+                }
+            }
             TypePathType::XmlNode => {
                 let name = &self.visitor_field_name;
                 let ty = &self.visitor_field_type;
@@ -280,7 +299,7 @@ impl<'a> FieldData<'a> {
             TypePathType::Vec | TypePathType::Option => {
                 quote! { self.#name }
             }
-            TypePathType::XmlNode => {
+            TypePathType::XmlNode | TypePathType::OptionalNode => {
                 quote! { #name }
             }
         };
