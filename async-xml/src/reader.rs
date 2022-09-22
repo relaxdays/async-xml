@@ -4,6 +4,7 @@ use crate::Error;
 use quick_xml::events::Event;
 use quick_xml::Decoder;
 use tokio::io::AsyncBufRead;
+use tracing::Instrument;
 
 mod impls;
 
@@ -129,20 +130,23 @@ impl<B: AsyncBufRead + Unpin> PeekingReader<B> {
         let dec = self.reader.decoder();
 
         let start_tag;
+        let element_span;
         match self.peek_event().await? {
             Event::Start(start) => {
                 // check for start element name
                 let name = start.local_name();
                 let name = dec.decode(name.as_ref())?;
-                tracing::debug!("deserializing XML element <{:?}>", name);
+                tracing::debug!("deserializing XML element <{}>", name);
                 if let Some(expected_name) = T::Visitor::start_name() {
                     if name != expected_name {
                         return Err(Error::WrongStart(expected_name.into(), name.into()));
                     }
                 }
-                visitor.visit_tag(&name)?;
                 // store name to match expected end element
                 start_tag = name.to_string();
+                element_span = tracing::debug_span!("deserialize", element = start_tag);
+                let span_guard = element_span.enter();
+                visitor.visit_tag(&name)?;
                 // read attributes
                 for attr in start.attributes() {
                     let attr = attr?;
@@ -152,48 +156,56 @@ impl<B: AsyncBufRead + Unpin> PeekingReader<B> {
                     tracing::trace!("visiting attribute: {:?}", attr_name);
                     visitor.visit_attribute(&attr_name, &attr_value)?;
                 }
+                // drop here because async
+                drop(span_guard);
                 // remove peeked start event
-                self.read_event().await?;
+                self.read_event()
+                    .instrument(element_span.clone().or_current())
+                    .await?;
             }
             _ => {
                 return Err(Error::MissingStart);
             }
         }
 
-        loop {
-            match self.peek_event().await? {
-                Event::End(end) => {
-                    let name = end.local_name();
-                    let name = dec.decode(name.as_ref())?.to_string();
-                    // remove peeked end event
-                    self.read_event().await?;
-                    // check for name
-                    if name != start_tag {
-                        return Err(Error::WrongEnd(start_tag, name));
+        async move {
+            loop {
+                match self.peek_event().await? {
+                    Event::End(end) => {
+                        let name = end.local_name();
+                        let name = dec.decode(name.as_ref())?.to_string();
+                        // remove peeked end event
+                        self.read_event().await?;
+                        // check for name
+                        if name != start_tag {
+                            return Err(Error::WrongEnd(start_tag, name));
+                        }
+                        tracing::trace!("finishing deserialization of XML element <{}>", name);
+                        return visitor.build();
                     }
-                    tracing::trace!("finishing deserialization of XML element <{:?}>", name);
-                    return visitor.build();
-                }
-                Event::Text(text) => {
-                    let text = dec.decode(&text)?;
-                    let text = quick_xml::escape::unescape(&text)?;
-                    tracing::trace!("visiting element text");
-                    visitor.visit_text(&text)?;
-                    // remove peeked event
-                    self.read_event().await?;
-                }
-                Event::Start(start) => {
-                    // peeked child start element -> find name and call into sub-element
-                    let name = start.local_name();
-                    let name = dec.decode(name.as_ref())?.to_string();
-                    tracing::trace!("visiting child: {:?}", name);
-                    visitor.visit_child(&name, self).await?;
-                }
-                _ => {
-                    self.read_event().await?;
+                    Event::Text(text) => {
+                        let text = dec.decode(&text)?;
+                        let text = quick_xml::escape::unescape(&text)?;
+                        tracing::trace!("visiting element text");
+                        visitor.visit_text(&text)?;
+                        // remove peeked event
+                        self.read_event().await?;
+                    }
+                    Event::Start(start) => {
+                        // peeked child start element -> find name and call into sub-element
+                        let name = start.local_name();
+                        let name = dec.decode(name.as_ref())?.to_string();
+                        tracing::trace!("visiting child: {:?}", name);
+                        visitor.visit_child(&name, self).await?;
+                    }
+                    _ => {
+                        self.read_event().await?;
+                    }
                 }
             }
         }
+        .instrument(element_span.or_current())
+        .await
     }
 }
 
