@@ -40,14 +40,12 @@ impl<'a> FieldData<'a> {
             attr::From::FromStr => unimplemented!(),
             attr::From::TryFrom(_t) => unimplemented!(),
         };
-        let type_type = if attrs.source == FieldSource::Flatten {
-            // force flattened fields to be used as if they were xml nodes
-            match get_type_path_type(inner_de_type) {
-                TypePathType::Option => TypePathType::OptionalNode,
-                _ => TypePathType::XmlNode,
-            }
-        } else {
-            get_type_path_type(inner_de_type)
+        let type_type = get_type_path_type(inner_de_type);
+        let type_type = match (attrs.source, type_type) {
+            (FieldSource::Flatten, TypePathType::Option) => TypePathType::OptionalNode,
+            (FieldSource::Flatten, TypePathType::Any) => TypePathType::XmlNode,
+            (FieldSource::Child, TypePathType::XmlNode) => TypePathType::Any,
+            _ => type_type,
         };
         let deserialization_type = match type_type {
             TypePathType::Any | TypePathType::Option | TypePathType::XmlNode => {
