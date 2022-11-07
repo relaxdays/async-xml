@@ -20,7 +20,7 @@ tokio = { version = "^1.19", features = ["io-std"] }
 async-trait = "0.1.56"
 thiserror = "1.0.31"
 async-xml-derive = { version = "0.2.2", path = "../async-xml-derive", optional = true }
-tracing = "0.1"
+tracing = "^0.1.35"
 
 [dev-dependencies]
 async-xml-derive = { path = "../async-xml-derive" }
